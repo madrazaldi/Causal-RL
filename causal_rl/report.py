@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -13,6 +14,22 @@ def plot_policy_values(metrics_df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(9, 5))
     ordered = metrics_df.sort_values("policy_value_dr", ascending=False)
     sns.barplot(data=ordered, x="policy", y="policy_value_dr", ax=ax, color="#3b7a57")
+    if {"policy_value_dr_ci_low", "policy_value_dr_ci_high"}.issubset(ordered.columns):
+        errors = np.vstack(
+            [
+                ordered["policy_value_dr"] - ordered["policy_value_dr_ci_low"],
+                ordered["policy_value_dr_ci_high"] - ordered["policy_value_dr"],
+            ]
+        )
+        ax.errorbar(
+            x=range(len(ordered)),
+            y=ordered["policy_value_dr"],
+            yerr=errors,
+            fmt="none",
+            ecolor="#1f3b2c",
+            elinewidth=1.3,
+            capsize=4,
+        )
     ax.set_title("Doubly Robust Policy Value by Policy")
     ax.set_ylabel("Estimated Policy Value")
     ax.set_xlabel("")

@@ -1,0 +1,6 @@
+scope,segment,best_policy,best_policy_value_dr,delta_vs_logged_behavior,delta_vs_causal_fqi,simpler_policy_beats_causal,insight
+overall,overall,non_causal_fqi,-4.456632596899403,0.36918693783504697,0.23745948418612084,0,"non_causal_fqi delivers the strongest doubly robust value in overall, supporting the current deployment framing."
+segment,high_traffic,non_causal_fqi,-6.836971467681509,0.7051337862184486,0.3999804600057839,0,"non_causal_fqi delivers the strongest doubly robust value in high_traffic, supporting the current deployment framing."
+segment,late_day,non_causal_fqi,-4.440499376127082,0.37994779907066256,0.4148245188272721,0,"non_causal_fqi delivers the strongest doubly robust value in late_day, supporting the current deployment framing."
+segment,rain_or_event,non_causal_fqi,-5.086983657794783,0.5281669495705223,0.28727730203388013,0,"non_causal_fqi delivers the strongest doubly robust value in rain_or_event, supporting the current deployment framing."
+segment,tight_window,non_causal_fqi,-7.6531438147184545,1.123486526941857,0.6737443873047724,0,"non_causal_fqi delivers the strongest doubly robust value in tight_window, supporting the current deployment framing."

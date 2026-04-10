@@ -17,15 +17,15 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from .config import (
     ACTION_COLUMN,
-    CAUSAL_BACKDOOR_COLUMNS,
+    ABLATION_STATE_REGISTRY,
     DECISION_LOG_PATH,
     FQI_ITERATIONS,
     GAMMA,
+    LEARNED_POLICY_REGISTRY,
     MAIN_RESULTS_TABLE_PATH,
     METADATA_PATH,
     MIN_PROPENSITY,
     MODELS_DIR,
-    NON_CAUSAL_EXTRA_COLUMNS,
     OUTCOME_MODEL_TARGETS,
     POLICY_SUMMARY_PATH,
     Q_GAP_THRESHOLD,
@@ -41,9 +41,7 @@ class PolicyArtifacts:
     heuristic_model: Pipeline
     outcome_model: Pipeline
     outcome_targets: dict[str, Pipeline]
-    non_causal_fqi: "FittedQPolicy"
-    causal_fqi: "FittedQPolicy"
-    oracle_fqi: "FittedQPolicy"
+    learned_policies: dict[str, "FittedQPolicy"]
     metadata: dict
 
 
@@ -225,7 +223,6 @@ def train_all_policies() -> PolicyArtifacts:
     train_df = df[df["split"] == "train"].copy()
 
     causal_state_columns = metadata["causal_state_columns"]
-    non_causal_state_columns = metadata["non_causal_state_columns"]
     oracle_state_columns = causal_state_columns + metadata["latent_columns"]
 
     for column in metadata["latent_columns"]:
@@ -242,22 +239,32 @@ def train_all_policies() -> PolicyArtifacts:
     outcome_model = fit_reward_outcome_model(train_df, causal_state_columns, REWARD_COLUMNS["primary"])
     outcome_targets = fit_outcome_models(train_df, causal_state_columns)
 
-    non_causal_fqi = FittedQPolicy(non_causal_state_columns, name="non_causal_fqi").fit(train_df)
-    causal_fqi = FittedQPolicy(causal_state_columns, name="causal_fqi").fit(train_df)
+    learned_policies = {}
+    for policy_name, state_columns in LEARNED_POLICY_REGISTRY.items():
+        learned_policies[policy_name] = FittedQPolicy(state_columns, name=policy_name).fit(train_df)
 
     metadata["trained_state_columns"] = {
-        "causal_fqi": causal_state_columns,
-        "non_causal_fqi": non_causal_state_columns,
+        **{name: cols for name, cols in LEARNED_POLICY_REGISTRY.items()},
         "oracle_fqi": oracle_state_columns,
+    }
+    metadata["ablation_definitions"] = {
+        "causal_no_history_fqi": {
+            "base_policy": "causal_fqi",
+            "removed_columns": sorted(set(ABLATION_STATE_REGISTRY["causal_fqi"]) - set(ABLATION_STATE_REGISTRY["causal_no_history_fqi"])),
+            "note": "Removes rolling and prior-history features while preserving trajectory position.",
+        },
+        "causal_no_vehicle_id_fqi": {
+            "base_policy": "causal_fqi",
+            "removed_columns": sorted(set(ABLATION_STATE_REGISTRY["causal_fqi"]) - set(ABLATION_STATE_REGISTRY["causal_no_vehicle_id_fqi"])),
+            "note": "Removes vehicle identity to test whether policy gains depend on vehicle-specific memorization.",
+        },
     }
     return PolicyArtifacts(
         behavior_model=behavior_model,
         heuristic_model=heuristic_model,
         outcome_model=outcome_model,
         outcome_targets=outcome_targets,
-        non_causal_fqi=non_causal_fqi,
-        causal_fqi=causal_fqi,
-        oracle_fqi=causal_fqi,
+        learned_policies=learned_policies,
         metadata=metadata,
     )
 
@@ -268,24 +275,22 @@ def save_policy_artifacts(artifacts: PolicyArtifacts) -> None:
     joblib.dump(artifacts.heuristic_model, MODELS_DIR / "heuristic_model.joblib")
     joblib.dump(artifacts.outcome_model, MODELS_DIR / "reward_outcome_model.joblib")
     joblib.dump(artifacts.outcome_targets, MODELS_DIR / "outcome_targets.joblib")
-    joblib.dump(artifacts.non_causal_fqi, MODELS_DIR / "non_causal_fqi.joblib")
-    joblib.dump(artifacts.causal_fqi, MODELS_DIR / "causal_fqi.joblib")
+    for policy_name, policy in artifacts.learned_policies.items():
+        joblib.dump(policy, MODELS_DIR / f"{policy_name}.joblib")
 
     summary = {
-        "policies": {
-            "causal_fqi": {
-                "state_columns": artifacts.metadata["trained_state_columns"]["causal_fqi"],
-                "training_history_mean_target": artifacts.causal_fqi.training_history,
-            },
-            "non_causal_fqi": {
-                "state_columns": artifacts.metadata["trained_state_columns"]["non_causal_fqi"],
-                "training_history_mean_target": artifacts.non_causal_fqi.training_history,
-            },
-            "oracle_fqi": {
-                "state_columns": artifacts.metadata["trained_state_columns"]["oracle_fqi"],
-                "note": "Oracle appendix model definition retained in metadata, but excluded from default training for runtime reasons.",
-            },
+        "policies": {},
+    }
+    for policy_name, policy in artifacts.learned_policies.items():
+        summary["policies"][policy_name] = {
+            "state_columns": artifacts.metadata["trained_state_columns"][policy_name],
+            "training_history_mean_target": policy.training_history,
         }
+        if policy_name in artifacts.metadata.get("ablation_definitions", {}):
+            summary["policies"][policy_name]["ablation"] = artifacts.metadata["ablation_definitions"][policy_name]
+    summary["policies"]["oracle_fqi"] = {
+        "state_columns": artifacts.metadata["trained_state_columns"]["oracle_fqi"],
+        "note": "Oracle appendix model definition retained in metadata, but excluded from default training for runtime reasons.",
     }
     with POLICY_SUMMARY_PATH.open("w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)

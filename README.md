@@ -44,6 +44,9 @@ Key files and directories:
 - [outline.md](/Users/anonymoize/Projects/Causal RL/outline.md): revised paper outline aligned to the eco-mode framing
 - [causalog_synthetic_urban_logistics.csv](/Users/anonymoize/Projects/Causal RL/causalog_synthetic_urban_logistics.csv): raw synthetic dataset
 - [causal_rl](/Users/anonymoize/Projects/Causal RL/causal_rl): package containing the full pipeline
+- [Makefile](/Users/anonymoize/Projects/Causal RL/Makefile): reproducible one-command run targets
+- [requirements.txt](/Users/anonymoize/Projects/Causal RL/requirements.txt): pinned Python dependency manifest
+- [IEEM_submission_assets.md](/Users/anonymoize/Projects/Causal RL/IEEM_submission_assets.md): section-by-section asset map for the current manuscript outline
 - [artifacts](/Users/anonymoize/Projects/Causal RL/artifacts): built decision log and dataset metadata
 - [models](/Users/anonymoize/Projects/Causal RL/models): saved trained models
 - [results](/Users/anonymoize/Projects/Causal RL/results): metrics, robustness results, reward sensitivity, and policy actions
@@ -82,11 +85,15 @@ The implementation follows this logic:
    - heuristic risk-rule baseline
    - non-causal fitted Q iteration
    - causal fitted Q iteration
+   - `causal_no_history_fqi` ablation
+   - `causal_no_vehicle_id_fqi` ablation
 7. Evaluate with:
-   - self-normalized IPS
-   - doubly robust estimation
-   - fitted Q evaluation
-   - subgroup robustness analysis
+   - doubly robust estimation as the primary policy-value estimator
+   - self-normalized IPS as a secondary check
+   - fitted Q evaluation as an appendix diagnostic
+   - bootstrap confidence intervals for overall and subgroup results
+   - subgroup robustness analysis with delta-vs-logged-behavior ranking
+   - support-threshold sweeps for conservative policy override selection
 
 The causal story is intentionally modest: this is **confounder-aware offline policy learning**, not a claim of strong real-world causal identification.
 
@@ -95,13 +102,25 @@ The causal story is intentionally modest: this is **confounder-aware offline pol
 From the repository root:
 
 ```bash
+make all
+```
+
+This runs:
+
+```bash
 python3 -m causal_rl.build_dataset
 python3 -m causal_rl.train_policies
-python3 -m causal_rl.evaluate
+python3 -m causal_rl.evaluate --bootstrap-reps 500 --run-ablations
 python3 -m causal_rl.report
 ```
 
-To run tests:
+To run the release check:
+
+```bash
+make release-check
+```
+
+To run tests only:
 
 ```bash
 pytest -q
@@ -117,45 +136,88 @@ Generated artifacts:
 - [results/robustness.csv](/Users/anonymoize/Projects/Causal RL/results/robustness.csv): subgroup robustness analysis
 - [results/reward_sensitivity.csv](/Users/anonymoize/Projects/Causal RL/results/reward_sensitivity.csv): reward sensitivity study
 - [results/main_results_table.csv](/Users/anonymoize/Projects/Causal RL/results/main_results_table.csv): compact paper-facing result table
+- [results/bootstrap_summary.csv](/Users/anonymoize/Projects/Causal RL/results/bootstrap_summary.csv): long-form bootstrap confidence intervals
+- [results/estimator_diagnostics.csv](/Users/anonymoize/Projects/Causal RL/results/estimator_diagnostics.csv): DR, IPS, plugin, and FQE comparison
+- [results/ablation_comparison.csv](/Users/anonymoize/Projects/Causal RL/results/ablation_comparison.csv): causal ablation summary
+- [results/support_threshold_sweep.csv](/Users/anonymoize/Projects/Causal RL/results/support_threshold_sweep.csv): support-constraint sweep used to select the publication default
+- [results/interpretation_summary.csv](/Users/anonymoize/Projects/Causal RL/results/interpretation_summary.csv): narrative summary of overall and subgroup winners
 - [figures/policy_values.png](/Users/anonymoize/Projects/Causal RL/figures/policy_values.png)
 - [figures/robustness_heatmap.png](/Users/anonymoize/Projects/Causal RL/figures/robustness_heatmap.png)
 - [figures/reward_sensitivity.png](/Users/anonymoize/Projects/Causal RL/figures/reward_sensitivity.png)
 - [figures/causal_graph.png](/Users/anonymoize/Projects/Causal RL/figures/causal_graph.png)
 - [figures/workflow.png](/Users/anonymoize/Projects/Causal RL/figures/workflow.png)
 
-## Current First-Run Results
+## Current Publication-Mode Results
 
-On the current synthetic dataset and current feature/reward design, the top doubly robust policy values in [results/metrics.csv](/Users/anonymoize/Projects/Causal RL/results/metrics.csv) are:
+Using the conservative support rule selected by the sweep,
 
-- `non_causal_fqi`: `-4.519`
-- `heuristic_risk_rule`: `-4.628`
-- `causal_fqi`: `-4.653`
-- `logged_behavior`: `-4.747`
+- `min_propensity = 0.05`
+- `q_gap_threshold = 0.50`
 
-This means the current implementation is working end to end, but it **does not yet support a strong paper claim that the causal policy outperforms the non-causal one**.
+the top doubly robust policy values in [results/metrics.csv](/Users/anonymoize/Projects/Causal RL/results/metrics.csv) are:
 
-That is an important research caveat, not a code bug.
+- `non_causal_fqi`: `-4.457` with 95% bootstrap CI `[-4.636, -4.280]`
+- `heuristic_risk_rule`: `-4.638` with 95% bootstrap CI `[-4.787, -4.500]`
+- `causal_no_vehicle_id_fqi`: `-4.670` with 95% bootstrap CI `[-4.847, -4.486]`
+- `causal_no_history_fqi`: `-4.687` with 95% bootstrap CI `[-4.862, -4.502]`
+- `causal_fqi`: `-4.694` with 95% bootstrap CI `[-4.886, -4.530]`
+- `logged_behavior`: `-4.826` with 95% bootstrap CI `[-5.055, -4.577]`
 
-## Recommended Next Steps
+The current evidence supports a conservative paper claim:
 
-If the goal is to turn this into a stronger conference paper, the next improvements should focus on:
+- confounder-aware offline RL improves over logged behavior,
+- the causal feature design is competitive and interpretable,
+- but the current synthetic setup still does **not** justify claiming that causal FQI dominates the non-causal comparator.
 
-- refining the causal backdoor feature set,
-- tightening the support-constraint rule,
-- revisiting the reward weights,
-- improving the subgroup analysis and interpretation,
-- adding stronger ablations that explain when causal adjustment helps,
-- optionally revisiting the synthetic data generation assumptions if the paper needs clearer causal-policy gains.
+The subgroup outputs also show an important operational nuance: in `high_traffic`, [results/interpretation_summary.csv](/Users/anonymoize/Projects/Causal RL/results/interpretation_summary.csv) flags `never_eco` as the best-performing policy, which is useful deployment guidance rather than a failure of the framework.
+
+## Publication-Oriented Additions
+
+The repo now includes the main publication-readiness upgrades that were previously only listed as next steps:
+
+- bootstrap confidence intervals for overall and subgroup estimates,
+- targeted causal ablations for history and vehicle identity,
+- a support-threshold sweep with a documented conservative default,
+- subgroup ranking and delta-vs-logged-behavior outputs,
+- estimator diagnostics that justify using DR as the main table value,
+- a pinned dependency manifest and `make all` reproducibility path,
+- an IEEM submission asset map tied to [outline.md](/Users/anonymoize/Projects/Causal RL/outline.md).
+
+Remaining future work is now optional rather than blocking:
+
+- revisiting reward weights if a different managerial objective is preferred,
+- refining the synthetic data generator only if the paper requires a stronger causal-policy-gain story,
+- expanding the appendix with more case studies or qualitative action traces.
 
 ## Reproducibility Notes
 
-- Python stack used by the current code: `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`
+- Python version used in the current environment: `3.12.13`
+- Pinned dependencies are listed in [requirements.txt](/Users/anonymoize/Projects/Causal RL/requirements.txt)
+- Current stack versions:
+  - `numpy==2.4.3`
+  - `pandas==3.0.2`
+  - `scikit-learn==1.8.0`
+  - `matplotlib==3.10.8`
+  - `seaborn==0.13.2`
+  - `joblib==1.5.2`
+- Full reproducible run: `make all`
+- Release candidate verification: `make release-check`
+- Publication-mode evaluation command:
+
+```bash
+python3 -m causal_rl.evaluate --bootstrap-reps 500 --run-ablations
+```
+
+- Fixed random seed: `42`
 - No `torch` dependency is required for this v1 pipeline
 - Tests currently cover:
   - no post-action state leakage,
   - trajectory construction and date-based splitting,
   - binary policy outputs,
-  - support-constrained fallback behavior
+  - support-constrained fallback behavior,
+  - ablation policy registration,
+  - bootstrap determinism and interval ordering,
+  - support-threshold sweep completeness
 
 ## Intended Audience
 
@@ -163,5 +225,5 @@ This repo is set up for:
 
 - paper drafting and experiment iteration,
 - offline RL benchmarking on the synthetic logistics data,
-- generating tables/figures for an IEEM-style applied analytics paper,
+- generating tables, diagnostics, and figures for an IEEM-style applied analytics paper,
 - future refinement of the causal-RL story before submission.

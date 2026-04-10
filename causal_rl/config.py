@@ -18,12 +18,19 @@ METRICS_PATH = RESULTS_DIR / "metrics.csv"
 ROBUSTNESS_PATH = RESULTS_DIR / "robustness.csv"
 REWARD_SENSITIVITY_PATH = RESULTS_DIR / "reward_sensitivity.csv"
 MAIN_RESULTS_TABLE_PATH = RESULTS_DIR / "main_results_table.csv"
+BOOTSTRAP_SUMMARY_PATH = RESULTS_DIR / "bootstrap_summary.csv"
+ESTIMATOR_DIAGNOSTICS_PATH = RESULTS_DIR / "estimator_diagnostics.csv"
+SUPPORT_SWEEP_PATH = RESULTS_DIR / "support_threshold_sweep.csv"
+ABLATION_COMPARISON_PATH = RESULTS_DIR / "ablation_comparison.csv"
+INTERPRETATION_SUMMARY_PATH = RESULTS_DIR / "interpretation_summary.csv"
+SUBMISSION_ASSET_NOTE_PATH = ROOT / "IEEM_submission_assets.md"
 
 SEED = 42
 GAMMA = 0.95
 FQI_ITERATIONS = 5
-MIN_PROPENSITY = 0.10
-Q_GAP_THRESHOLD = 0.25
+MIN_PROPENSITY = 0.05
+Q_GAP_THRESHOLD = 0.50
+BOOTSTRAP_REPS = 500
 
 SPLIT_RATIOS = (0.70, 0.15, 0.15)
 
@@ -93,6 +100,14 @@ SEQUENTIAL_STATE_COLUMNS = [
 
 DEPLOYABLE_STATE_COLUMNS = BASE_STATE_COLUMNS + SEQUENTIAL_STATE_COLUMNS
 
+HISTORY_FEATURE_COLUMNS = [
+    "rolling_mean_traffic",
+    "rolling_cumulative_lateness",
+    "rolling_incident_count",
+    "prior_reward_primary",
+    "prior_eco_mode",
+]
+
 CAUSAL_BACKDOOR_COLUMNS = [
     "day_idx",
     "dow",
@@ -157,3 +172,17 @@ ROBUSTNESS_SEGMENTS = {
     "tight_window": "time_window_tightness >= time_window_tightness.quantile(0.75)",
     "late_day": "hour >= 17",
 }
+
+ABLATION_STATE_REGISTRY = {
+    "causal_fqi": CAUSAL_BACKDOOR_COLUMNS,
+    "causal_no_history_fqi": [col for col in CAUSAL_BACKDOOR_COLUMNS if col not in HISTORY_FEATURE_COLUMNS],
+    "causal_no_vehicle_id_fqi": [col for col in CAUSAL_BACKDOOR_COLUMNS if col != "vehicle_id"],
+}
+
+LEARNED_POLICY_REGISTRY = {
+    "non_causal_fqi": DEPLOYABLE_STATE_COLUMNS,
+    **ABLATION_STATE_REGISTRY,
+}
+
+SUPPORT_SWEEP_PROPENSITIES = [0.05, 0.10, 0.15]
+SUPPORT_SWEEP_Q_GAPS = [0.0, 0.25, 0.5]

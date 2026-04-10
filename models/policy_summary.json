@@ -1,49 +1,5 @@
 {
   "policies": {
-    "causal_fqi": {
-      "state_columns": [
-        "day_idx",
-        "dow",
-        "hour",
-        "zone",
-        "vehicle_id",
-        "vehicle_type",
-        "vehicle_age_years",
-        "vehicle_efficiency_index",
-        "commodity_type",
-        "demand_size",
-        "time_window_tightness",
-        "service_time_min",
-        "speed_limit_kmph",
-        "intersection_density",
-        "road_grade_index",
-        "road_risk_index",
-        "rain",
-        "rain_intensity",
-        "temperature_c",
-        "visibility_km",
-        "event_indicator",
-        "roadworks_indicator",
-        "traffic_index",
-        "traffic_state",
-        "route_risky",
-        "dispatch_delay_min",
-        "step_idx",
-        "remaining_steps",
-        "rolling_mean_traffic",
-        "rolling_cumulative_lateness",
-        "rolling_incident_count",
-        "prior_reward_primary",
-        "prior_eco_mode"
-      ],
-      "training_history_mean_target": [
-        -4.693264338558181,
-        -8.163178337236594,
-        -10.836587114985363,
-        -12.849706113719126,
-        -14.287663944164857
-      ]
-    },
     "non_causal_fqi": {
       "state_columns": [
         "day_idx",
@@ -90,6 +46,150 @@
         -12.779561769597196,
         -14.201684102796609
       ]
+    },
+    "causal_fqi": {
+      "state_columns": [
+        "day_idx",
+        "dow",
+        "hour",
+        "zone",
+        "vehicle_id",
+        "vehicle_type",
+        "vehicle_age_years",
+        "vehicle_efficiency_index",
+        "commodity_type",
+        "demand_size",
+        "time_window_tightness",
+        "service_time_min",
+        "speed_limit_kmph",
+        "intersection_density",
+        "road_grade_index",
+        "road_risk_index",
+        "rain",
+        "rain_intensity",
+        "temperature_c",
+        "visibility_km",
+        "event_indicator",
+        "roadworks_indicator",
+        "traffic_index",
+        "traffic_state",
+        "route_risky",
+        "dispatch_delay_min",
+        "step_idx",
+        "remaining_steps",
+        "rolling_mean_traffic",
+        "rolling_cumulative_lateness",
+        "rolling_incident_count",
+        "prior_reward_primary",
+        "prior_eco_mode"
+      ],
+      "training_history_mean_target": [
+        -4.693264338558181,
+        -8.163178337236594,
+        -10.836587114985363,
+        -12.849706113719126,
+        -14.287663944164857
+      ]
+    },
+    "causal_no_history_fqi": {
+      "state_columns": [
+        "day_idx",
+        "dow",
+        "hour",
+        "zone",
+        "vehicle_id",
+        "vehicle_type",
+        "vehicle_age_years",
+        "vehicle_efficiency_index",
+        "commodity_type",
+        "demand_size",
+        "time_window_tightness",
+        "service_time_min",
+        "speed_limit_kmph",
+        "intersection_density",
+        "road_grade_index",
+        "road_risk_index",
+        "rain",
+        "rain_intensity",
+        "temperature_c",
+        "visibility_km",
+        "event_indicator",
+        "roadworks_indicator",
+        "traffic_index",
+        "traffic_state",
+        "route_risky",
+        "dispatch_delay_min",
+        "step_idx",
+        "remaining_steps"
+      ],
+      "training_history_mean_target": [
+        -4.693264338558181,
+        -8.159342805833564,
+        -10.835290269850203,
+        -12.851202414677893,
+        -14.289630279015212
+      ],
+      "ablation": {
+        "base_policy": "causal_fqi",
+        "removed_columns": [
+          "prior_eco_mode",
+          "prior_reward_primary",
+          "rolling_cumulative_lateness",
+          "rolling_incident_count",
+          "rolling_mean_traffic"
+        ],
+        "note": "Removes rolling and prior-history features while preserving trajectory position."
+      }
+    },
+    "causal_no_vehicle_id_fqi": {
+      "state_columns": [
+        "day_idx",
+        "dow",
+        "hour",
+        "zone",
+        "vehicle_type",
+        "vehicle_age_years",
+        "vehicle_efficiency_index",
+        "commodity_type",
+        "demand_size",
+        "time_window_tightness",
+        "service_time_min",
+        "speed_limit_kmph",
+        "intersection_density",
+        "road_grade_index",
+        "road_risk_index",
+        "rain",
+        "rain_intensity",
+        "temperature_c",
+        "visibility_km",
+        "event_indicator",
+        "roadworks_indicator",
+        "traffic_index",
+        "traffic_state",
+        "route_risky",
+        "dispatch_delay_min",
+        "step_idx",
+        "remaining_steps",
+        "rolling_mean_traffic",
+        "rolling_cumulative_lateness",
+        "rolling_incident_count",
+        "prior_reward_primary",
+        "prior_eco_mode"
+      ],
+      "training_history_mean_target": [
+        -4.693264338558181,
+        -8.17270198131753,
+        -10.84666930315262,
+        -12.860155992742973,
+        -14.300915377781404
+      ],
+      "ablation": {
+        "base_policy": "causal_fqi",
+        "removed_columns": [
+          "vehicle_id"
+        ],
+        "note": "Removes vehicle identity to test whether policy gains depend on vehicle-specific memorization."
+      }
     },
     "oracle_fqi": {
       "state_columns": [
