@@ -133,6 +133,8 @@ def build_decision_log(raw_df: pd.DataFrame) -> DatasetBundle:
     df = raw_df.copy()
     if not pd.api.types.is_datetime64_any_dtype(df[DATE_COLUMN]):
         df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
+    if "row_id" not in df.columns:
+        df["row_id"] = np.arange(len(df))
     df = compute_reward_columns(df)
     df = add_sequential_features(df)
     df, split_metadata = assign_temporal_splits(df)
