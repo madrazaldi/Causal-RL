@@ -1,10 +1,12 @@
 # Methodology
 
+This section documents the methodology for a **synthetic urban logistics case study** in **confounder-aware offline RL**. The goal is to provide **decision support for eco-mode selection** under observational bias, not to claim a general causal RL solution for logistics.
+
 ## 3. Problem Formulation and Proposed Method
 
 ### 3.1 Sequential Decision Formulation
 
-We formulate urban logistics eco-mode control as an offline sequential decision problem over vehicle-day trajectories. Let the logged dataset be
+We formulate urban logistics eco-mode control as an offline sequential decision problem over vehicle-day trajectories. In the manuscript, this formulation is treated as an applied benchmark for **intervention-aware logistics analytics** rather than a claim of field-ready automation. Let the logged dataset be
 
 $$
 \mathcal{D} = \{\tau_i\}_{i=1}^{N}, \qquad
@@ -95,7 +97,7 @@ with discount factor $\gamma = 0.95$, using only historical logs and without onl
 
 ### 3.2 Confounder-Aware Offline RL Framework
 
-The proposed framework has three stages: domain-guided causal adjustment, offline policy learning, and support-constrained policy improvement with offline evaluation.
+Within this synthetic urban logistics case study, the proposed framework has three stages: domain-guided causal adjustment, offline policy learning, and support-constrained policy improvement with offline evaluation.
 
 #### 3.2.1 Domain-Guided Causal Adjustment
 
@@ -124,7 +126,7 @@ $$
 Y_t(a) \perp A_t \mid Z_t.
 $$
 
-The implementation therefore defines a **causal backdoor state** using the observed covariates that plausibly cause both eco-mode choice and operational outcomes. This design intentionally excludes:
+The implementation therefore defines a **causal backdoor state** using the observed covariates that plausibly cause both eco-mode choice and operational outcomes. The purpose is to construct a more credible pre-decision state for offline policy learning, not to claim full causal identification. This design intentionally excludes:
 
 - post-action variables such as `avg_speed_kmph`, `travel_time_min`, `fuel_liters`, `co2_kg`, `near_miss`, `crash`, `lateness_min`, and `on_time`,
 - latent simulator-only columns such as `maintenance_latent`, `driver_skill_latent`, and `driver_risk_propensity_latent`.
@@ -203,6 +205,8 @@ $$
 
 where the state is restricted to the backdoor-guided causal feature set.
 
+The comparison is intentionally benchmark-oriented: it tests whether confounder-aware state design changes policy quality, robustness, and deployability under the same logistics control task, rather than presuming that the causal-state policy must dominate every comparator.
+
 Two ablation variants are also trained for mechanism checks:
 
 - **causal\_no\_history\_fqi**, which removes rolling-history features and prior eco-mode information,
@@ -239,7 +243,7 @@ $$
 \tau_Q = 0.50.
 $$
 
-This rule converts offline RL from unconstrained imitation-breaking optimization into a conservative decision-support layer.
+This rule converts offline RL from unconstrained imitation-breaking optimization into a conservative decision-support layer for eco-mode selection.
 
 ### 3.3 Baselines and Evaluation Logic
 
@@ -473,4 +477,4 @@ The full methodology can be summarized as:
 5. Apply support-constrained policy improvement to avoid weakly supported overrides.
 6. Evaluate learned policies on a held-out temporal test set using SNIPS, doubly robust estimation, FQE, bootstrap confidence intervals, and subgroup robustness analysis.
 
-This framing positions eco-mode control as an interpretable and operationally conservative offline decision-learning problem rather than a purely predictive task.
+This framing positions eco-mode control as an interpretable and operationally conservative offline decision-learning problem rather than a purely predictive task. In the full paper, the empirical findings should therefore be interpreted as evidence about a **synthetic urban logistics case study** and about the value of confounding-aware state design and deployment guardrails, not as proof that causal FQI is the strongest overall policy.

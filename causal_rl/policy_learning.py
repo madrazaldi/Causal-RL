@@ -39,7 +39,6 @@ from .config import (
 class PolicyArtifacts:
     behavior_model: Pipeline
     heuristic_model: Pipeline
-    outcome_model: Pipeline
     outcome_targets: dict[str, Pipeline]
     learned_policies: dict[str, "FittedQPolicy"]
     metadata: dict
@@ -210,13 +209,6 @@ def fit_outcome_models(df: pd.DataFrame, state_columns: list[str]) -> dict[str, 
     return models
 
 
-def fit_reward_outcome_model(df: pd.DataFrame, state_columns: list[str], reward_column: str) -> Pipeline:
-    augmented_columns = state_columns + [ACTION_COLUMN]
-    pipeline = make_regressor_pipeline(df, augmented_columns, random_state=SEED + 99)
-    pipeline.fit(df[augmented_columns], df[reward_column])
-    return pipeline
-
-
 def train_all_policies() -> PolicyArtifacts:
     df = load_training_frame()
     metadata = load_metadata()
@@ -236,7 +228,6 @@ def train_all_policies() -> PolicyArtifacts:
     behavior_model.fit(train_df[causal_state_columns], train_df["action"])
 
     heuristic_model = fit_heuristic_risk_model(train_df, causal_state_columns)
-    outcome_model = fit_reward_outcome_model(train_df, causal_state_columns, REWARD_COLUMNS["primary"])
     outcome_targets = fit_outcome_models(train_df, causal_state_columns)
 
     learned_policies = {}
@@ -262,7 +253,6 @@ def train_all_policies() -> PolicyArtifacts:
     return PolicyArtifacts(
         behavior_model=behavior_model,
         heuristic_model=heuristic_model,
-        outcome_model=outcome_model,
         outcome_targets=outcome_targets,
         learned_policies=learned_policies,
         metadata=metadata,
@@ -273,7 +263,6 @@ def save_policy_artifacts(artifacts: PolicyArtifacts) -> None:
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(artifacts.behavior_model, MODELS_DIR / "behavior_model.joblib")
     joblib.dump(artifacts.heuristic_model, MODELS_DIR / "heuristic_model.joblib")
-    joblib.dump(artifacts.outcome_model, MODELS_DIR / "reward_outcome_model.joblib")
     joblib.dump(artifacts.outcome_targets, MODELS_DIR / "outcome_targets.joblib")
     for policy_name, policy in artifacts.learned_policies.items():
         joblib.dump(policy, MODELS_DIR / f"{policy_name}.joblib")

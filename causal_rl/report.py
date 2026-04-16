@@ -198,10 +198,25 @@ def _add_card(
     return {"left": x0, "right": x0 + width, "bottom": y0, "top": y0 + height, "cx": center[0], "cy": center[1]}
 
 
+def _policy_color(name: str) -> str:
+    """Color-code policies by family for visual distinction in paper figures."""
+    causal_family = {"causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi"}
+    if name in causal_family:
+        return "#2a7f62"  # teal for causal variants
+    if name == "non_causal_fqi":
+        return "#4a7fa5"  # steel blue for non-causal FQI
+    if name == "heuristic_risk_rule":
+        return "#c4943d"  # amber for heuristic
+    return "#8c8c8c"  # neutral gray for baselines
+
+
 def plot_policy_values(metrics_df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(9, 5))
-    ordered = metrics_df.sort_values("policy_value_dr", ascending=False)
-    sns.barplot(data=ordered, x="policy", y="policy_value_dr", ax=ax, color="#3b7a57")
+    ordered = metrics_df.sort_values("policy_value_dr", ascending=False).reset_index(drop=True)
+    colors = [_policy_color(p) for p in ordered["policy"]]
+    bars = ax.bar(range(len(ordered)), ordered["policy_value_dr"], color=colors, edgecolor="white", linewidth=0.5)
+    ax.set_xticks(range(len(ordered)))
+    ax.set_xticklabels(ordered["policy"], rotation=30, ha="right")
     if {"policy_value_dr_ci_low", "policy_value_dr_ci_high"}.issubset(ordered.columns):
         errors = np.vstack(
             [
@@ -218,10 +233,18 @@ def plot_policy_values(metrics_df: pd.DataFrame) -> None:
             elinewidth=1.3,
             capsize=4,
         )
-    ax.set_title("Doubly Robust Policy Value by Policy")
-    ax.set_ylabel("Estimated Policy Value")
+    # Legend for policy families
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor="#2a7f62", label="Causal FQI variants"),
+        Patch(facecolor="#4a7fa5", label="Non-causal FQI"),
+        Patch(facecolor="#c4943d", label="Heuristic rule"),
+        Patch(facecolor="#8c8c8c", label="Baselines"),
+    ]
+    ax.legend(handles=legend_elements, loc="lower left", fontsize=9, framealpha=0.9)
+    ax.set_title("Synthetic Urban Logistics Case Study: Doubly Robust Policy Value")
+    ax.set_ylabel("Estimated Policy Value (DR)")
     ax.set_xlabel("")
-    ax.tick_params(axis="x", rotation=30)
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "policy_values.png", dpi=220)
     plt.close(fig)
@@ -238,7 +261,7 @@ def plot_robustness(robustness_df: pd.DataFrame) -> None:
     )
     fig, ax = plt.subplots(figsize=(9, 5))
     sns.heatmap(pivot, annot=True, fmt=".2f", cmap="YlGnBu", ax=ax)
-    ax.set_title("Robustness Across Operational Scenarios")
+    ax.set_title("Synthetic Urban Logistics Case Study: Segment-Level Policy Value")
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "robustness_heatmap.png", dpi=220)
     plt.close(fig)
@@ -247,7 +270,7 @@ def plot_robustness(robustness_df: pd.DataFrame) -> None:
 def plot_reward_sensitivity(reward_df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.barplot(data=reward_df, x="policy", y="policy_value_dr", hue="reward_name", ax=ax)
-    ax.set_title("Reward Sensitivity of Policy Value")
+    ax.set_title("Synthetic Urban Logistics Case Study: Reward Sensitivity")
     ax.set_ylabel("Doubly Robust Value")
     ax.set_xlabel("")
     ax.tick_params(axis="x", rotation=30)
@@ -320,7 +343,7 @@ def plot_causal_graph(metadata: dict) -> None:
         width=2.15,
         height=0.9,
         label="Eco-Mode",
-        subtitle="policy action",
+        subtitle="observed logistics action",
         facecolor=ACTION_FILL,
         edgecolor=ACTION_EDGE,
         fontsize=16,
@@ -331,7 +354,7 @@ def plot_causal_graph(metadata: dict) -> None:
         width=2.1,
         height=0.9,
         label="Reward",
-        subtitle="energy, service, safety",
+        subtitle="service, safety, emissions",
         facecolor=REWARD_FILL,
         edgecolor=REWARD_EDGE,
         fontsize=16,
@@ -373,14 +396,21 @@ def plot_causal_graph(metadata: dict) -> None:
     ax.text(
         6.85,
         6.45,
-        "Backdoor-adjusted state blocks\nspurious action-outcome paths",
+        "Confounder-aware state design supports\ncredible offline decision learning",
         ha="center",
         va="center",
         fontsize=11,
         color=MUTED,
         family="DejaVu Sans",
     )
-    ax.set_title("Domain Causal Graph for Eco-Mode Control", fontsize=22, fontweight="semibold", pad=18, color=INK, family="DejaVu Serif")
+    ax.set_title(
+        "Confounder-Aware State Design for Urban Logistics Eco-Mode Control",
+        fontsize=22,
+        fontweight="semibold",
+        pad=18,
+        color=INK,
+        family="DejaVu Serif",
+    )
     fig.tight_layout(pad=1.1)
     _save_figure(fig, "causal_graph")
     plt.close(fig)
@@ -394,11 +424,11 @@ def plot_workflow() -> None:
     ax.set_ylim(0.6, 4.0)
 
     steps = [
-        ("Historical Logs", "Trips, fleet attributes, demand, and route context"),
+        ("Historical Logistics Logs", "Trips, fleet attributes, demand, and route context"),
         ("Confounder-Aware State", "Retain only pre-decision covariates from the causal DAG"),
         ("Offline Policy Learning", "Fit behavior and value models without online exploration"),
         ("Off-Policy Evaluation", "Validate with doubly robust and FQE diagnostics"),
-        ("Eco-Mode Recommendation", "Deploy a conservative action rule for operations"),
+        ("Decision-Support Recommendation", "Apply conservative eco-mode overrides in operations"),
     ]
     centers = [(1.65, 2.1), (4.35, 2.1), (7.05, 2.1), (9.75, 2.1), (12.45, 2.1)]
     cards = [
@@ -422,14 +452,21 @@ def plot_workflow() -> None:
     ax.text(
         7.1,
         0.95,
-        "Data preparation and causal state design feed a fully offline decision pipeline.",
+        "The pipeline is designed for conservative logistics decision support, not autonomous control.",
         ha="center",
         va="center",
         fontsize=11,
         color=MUTED,
         family="DejaVu Sans",
     )
-    ax.set_title("Proposed Eco-Mode Offline RL Workflow", fontsize=20, fontweight="semibold", pad=18, color=INK, family="DejaVu Serif")
+    ax.set_title(
+        "Offline Decision-Support Workflow for the Urban Logistics Case Study",
+        fontsize=20,
+        fontweight="semibold",
+        pad=18,
+        color=INK,
+        family="DejaVu Serif",
+    )
     fig.tight_layout(pad=1.1)
     _save_figure(fig, "workflow")
     plt.close(fig)

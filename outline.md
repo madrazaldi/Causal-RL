@@ -1,144 +1,158 @@
 # Working Title
 
-**Confounder-Aware Offline Reinforcement Learning for Eco-Mode Control in Urban Logistics**
+**Causal Reinforcement Learning for Urban Logistics: A Confounder-Aware Offline Case Study of Eco-Mode Control**
 
-# Abstract (150–200 words)
+# Positioning
 
-**Part 1: Operational motivation**
+Treat the paper as an **IEEM-style applied logistics case study**. The contribution is not that causal RL solves logistics control in general. The contribution is that a **confounder-aware offline RL benchmark** can be built around a realistic logistics action, can be evaluated conservatively, and can provide **decision support for eco-mode selection** in a synthetic urban logistics setting.
 
-Position eco-mode selection as an operational control problem in urban logistics. Eco-driving or eco-mode settings can lower fuel usage and carbon emissions, but they may also affect travel speed, service timeliness, and safety outcomes.
+Keep these claims consistent throughout:
 
-**Part 2: Gap**
+- this is a **synthetic urban logistics case study**,
+- the method is **confounder-aware offline RL**,
+- the intended use is **decision support for eco-mode selection**,
+- the broader implication is **intervention-aware logistics analytics**,
+- the evidence does **not** show that causal FQI is the best overall policy,
+- the evidence does **not** justify generalizing beyond the eco-mode case study.
 
-State that most logistics analytics studies focus on prediction tasks such as ETA, lateness, and route efficiency, while few studies learn action policies from logged operational decisions. Real logistics datasets are often rich in events but do not expose explicit intervention labels; this motivates a clean decision-learning study on a logged action that is directly observed.
+# Abstract (150-200 words)
+
+Use four short parts.
+
+**Part 1: Logistics motivation**
+
+Frame eco-mode selection as a last-mile operations problem under pressure to reduce emissions and fuel use without degrading service reliability or safety.
+
+**Part 2: Research gap**
+
+State that logistics analytics often emphasizes ETA prediction, lateness prediction, or planning, but much less often learns action policies from observational operational logs. Offline RL is attractive because live experimentation is risky, yet logged actions are confounded by urgency, congestion, weather, and route conditions.
 
 **Part 3: Method**
 
-Summarize the method in one sentence:
+Describe the method as a **confounder-aware offline policy-learning pipeline** for a synthetic urban logistics dataset with an observed action `eco_mode`, fitted Q iteration, support-constrained overrides, and off-policy evaluation.
 
-This paper proposes a confounder-aware offline reinforcement learning framework that learns eco-mode control policies from historical urban logistics logs using causal adjustment, fitted Q iteration, and off-policy evaluation.
+**Part 4: Main findings**
 
-**Part 4: Results and implication**
+Report only the findings that are actually supported:
 
-Summarize only 2–3 outcomes:
-
-- improved expected operational return under a timeliness-safety-emissions reward,
-- more robust policy value under traffic and weather shifts,
-- interpretable eco-mode recommendations for different operating conditions.
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
+- `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable,
+- subgroup analysis shows **segment-dependent trade-offs** and supports conservative deployment rather than universal automation.
 
 # 1. Introduction
 
-**Paragraph 1: Problem context**
+## Paragraph 1: Urban logistics problem
 
-Explain why eco-mode control matters in last-mile and urban logistics:
+Open with sustainable urban logistics pressures:
 
-- pressure to reduce emissions and fuel costs,
-- need to preserve service levels,
-- interaction with congestion, weather, and route risk,
-- operational trade-offs between sustainability and performance.
+- emissions and fuel costs,
+- service reliability and time windows,
+- safety in congested and weather-sensitive operations,
+- pressure to make operational recommendations from data rather than fixed heuristics.
 
-End with the core challenge:
+End with the main decision problem:
 
-The main challenge is not only estimating whether an order is at risk, but selecting an operational control action that balances service, safety, and sustainability under observational bias.
+The challenge is not only predicting lateness or congestion, but recommending an operational action that balances timeliness, safety, and sustainability under observational bias.
 
-**Paragraph 2: Existing solutions**
+## Paragraph 2: Limits of current logistics analytics
 
-Briefly summarize logistics analytics work on:
+Review common logistics analytics tasks briefly:
 
-- ETA prediction,
-- late-delivery prediction,
-- route optimization,
-- emissions-aware planning,
-- heuristic dispatch rules.
+- ETA and lateness prediction,
+- routing and stop-sequence optimization,
+- green logistics and emissions estimation,
+- heuristic operational rules.
 
-Then state the limitation:
+Then state the gap:
 
-These methods primarily provide predictions or fixed rules, but they do not directly learn decision policies from logged historical actions.
+These approaches support planning or prediction, but they do not directly learn **action policies from logged operational decisions**.
 
-**Paragraph 3: Research gap**
+## Paragraph 3: Why offline RL and why caution
 
 Use this logic:
 
-- offline RL is attractive because online experimentation in logistics can be unsafe or impractical,
-- observational action logs are confounded because operators choose eco-mode differently under congestion, urgency, and route conditions,
-- naive offline RL may learn spurious action-value relationships,
-- causal adjustment can improve policy relevance and robustness.
+- online experimentation in logistics can be costly, unsafe, or impractical,
+- offline RL can learn from logged decisions,
+- logged eco-mode choices are observational and confounded,
+- naive offline RL can exploit unstable correlations,
+- causal state design and conservative support constraints can improve credibility.
 
-Mention the dataset motivation briefly:
+Be explicit that the dataset is synthetic and that this improves internal clarity, not external validity:
 
-Industry datasets such as LaDe are rich in event and trajectory information, but they do not directly expose intervention labels suited to prescriptive policy learning. In contrast, the present synthetic urban logistics log contains an observed control action (`eco_mode`) and measurable service, safety, and emissions outcomes, making it suitable for a clean offline decision-learning study.
+The paper studies a synthetic urban logistics log with an observed binary action `eco_mode`, allowing a clean intervention-learning benchmark without claiming direct field deployment readiness.
 
-**Paragraph 4: Research question and contributions**
+## Paragraph 4: Research question and contributions
 
-State the research question:
+Use this research question:
 
-**RQ:** Can a confounder-aware offline RL policy choose better eco-mode actions than logged behavior, heuristics, and non-causal offline RL for improving the timeliness-safety-emissions trade-off in urban logistics?
+**RQ:** In a synthetic urban logistics case study, can confounder-aware offline RL provide a credible and operationally useful decision-support policy for eco-mode selection relative to logged behavior, heuristic rules, and a broader non-causal offline RL comparator?
 
-Then keep only 3 contributions:
+State four contributions in this order:
 
 1. We formulate urban logistics eco-mode selection as an offline sequential decision problem over vehicle-day trajectories.
-2. We propose a confounder-aware offline RL framework that combines domain-guided causal adjustment with fitted Q iteration and support-constrained policy improvement.
-3. We benchmark the resulting policy against logged behavior, heuristic rules, and non-causal offline RL using off-policy evaluation, robustness analysis, and operational interpretation.
+2. We build a **confounder-aware offline RL benchmark and evaluation pipeline** using backdoor-guided state design, fitted Q iteration, and conservative support-constrained overrides.
+3. We show that **confounder-aware offline RL improves over logged behavior** while remaining interpretable and deployable as a decision-support layer.
+4. We use the benchmark to reveal **trade-offs, robustness differences, and deployment limits**, including the fact that the broader non-causal comparator achieves the strongest overall doubly robust value.
 
 # 2. Related Work and Research Gap
 
-## 2.1 Prediction and optimization in logistics analytics
+## 2.1 Logistics analytics and operational decision support
 
-Review four clusters briefly:
+Cover four clusters:
 
 - ETA and lateness prediction,
-- route and stop-sequence optimization,
-- emissions-aware transportation analytics,
-- heuristic dispatch or control policies.
+- routing and service planning,
+- green logistics and emissions analytics,
+- heuristic control and dispatch policies.
 
-For each cluster, emphasize one limitation:
+For each, emphasize the same gap:
 
-- predicts risk but does not choose actions,
-- optimizes plans but not logged adaptive control,
-- often correlational,
-- limited counterfactual support.
+- predicts risk but does not recommend actions,
+- optimizes plans but not adaptive logged controls,
+- often remains correlational,
+- offers limited counterfactual support.
 
 ## 2.2 Offline RL and causal decision learning
 
-Briefly introduce:
+Summarize:
 
-- offline RL learns policies from logged data without online exploration,
-- major risk: extrapolation and distribution shift,
-- causal adjustment helps separate confounders from unstable proxies,
-- support constraints matter when moving from logged behavior to recommended actions.
+- offline RL learns from logged data without live exploration,
+- performance depends on overlap, extrapolation control, and state design,
+- causal adjustment helps separate plausible confounders from unstable proxies,
+- support constraints matter for safe deployment.
 
-Explain why this matters here:
+Then connect to the paper:
 
-Eco-mode is an action, not a label. Logged eco-mode decisions are observational and may depend on urgency, congestion, driver context, and route characteristics.
+Eco-mode is an observed logistics action, not a label. This makes the task suitable for **intervention-aware logistics analytics** while also making confounding a first-order concern.
 
-**Benchmark table**
+## Benchmark table
 
 |**Study type**|**Task**|**Method**|**Output**|**Limitation**|
 |---|---|---|---|---|
 |Logistics ML|ETA/lateness prediction|RF/XGB/DL|Risk score|No action recommendation|
 |Green logistics analytics|Fuel/emissions estimation|Regression/optimization|Efficiency estimate|Weak policy learning from logs|
 |Offline RL|Policy learning|Batch RL|Action policy|Sensitive to confounding and shift|
-|Causal RL|Intervention learning|Causal policy learning|Counterfactual action|Rare in logistics operations|
-|This study|Eco-mode control|Confounder-aware offline RL|Operational action policy|—|
+|Causal decision learning|Intervention-aware policy learning|Causal adjustment + policy learning|Counterfactual action guidance|Rare in logistics operations|
+|This study|Eco-mode control|Confounder-aware offline RL|Decision support for eco-mode selection|Synthetic case study only|
 
-**Synthesis paragraph**
+## Synthesis paragraph
 
-Prior logistics studies largely stop at prediction, planning, or heuristic control. Offline RL offers a path from logs to action recommendation, but it can overfit spurious action-outcome patterns when historical decisions are confounded. This motivates a confounder-aware offline RL framework for eco-mode control that targets actionable and operationally interpretable policy learning.
+Prior logistics studies largely stop at prediction, planning, or fixed heuristics. This paper instead treats eco-mode selection as an **applied logistics case study** in offline policy learning, with causal guidance used to design a more credible and deployable state representation rather than to claim universal causal identification.
 
 # 3. Problem Formulation and Proposed Method
 
 ## 3.1 Sequential decision formulation
 
-Define the problem as a sequential decision process over trajectories formed by `date`-`vehicle_id`.
+Define the sequential problem over trajectories formed by `date`-`vehicle_id`.
 
-- **State**: pre-decision operational context at each step
-  - time and location context: `day_idx`, `dow`, `hour`, `zone`
-  - vehicle and task context: `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min`
-  - road and environment context: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky`
-  - operational backlog/control context: `dispatch_delay_min`
+- **State**: pre-decision operational context available to a deployable controller
+  - time and location: `day_idx`, `dow`, `hour`, `zone`
+  - vehicle and task: `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min`
+  - road and environment: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky`
+  - operational backlog: `dispatch_delay_min`
   - sequential context: `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode`
 
-- **Action**: `eco_mode ∈ {0,1}`
+- **Action**: `eco_mode in {0,1}`
   - `0`: standard mode
   - `1`: eco mode
 
@@ -148,188 +162,193 @@ Define the problem as a sequential decision process over trajectories formed by 
 r_t = -(\text{lateness\_min}_t + 10 \cdot \text{crash}_t + 2 \cdot \text{near\_miss}_t + 0.2 \cdot \text{co2\_kg}_t)
 \]
 
-Add two sensitivity rewards:
+Retain the two sensitivity rewards:
 
-- service-heavy reward,
-- sustainability-heavy reward.
+- service-heavy,
+- sustainability-heavy.
 
-- **Objective**: learn a policy \(\pi(a|s)\) that maximizes expected discounted return from historical logs without online exploration.
+- **Objective**: learn a policy that maximizes discounted return from historical logs without online exploration.
 
 ## 3.2 Confounder-aware offline RL framework
 
-Describe the framework in 3 steps.
+Present the method as a **confounder-aware offline policy-learning pipeline** inside a synthetic urban logistics case study.
 
 **Step 1: Domain-guided causal adjustment**
 
-State that eco-mode decisions are observational and may depend on urgency, weather, congestion, route risk, and recent operational history. Use a small domain DAG to justify a backdoor-adjustment feature set.
+- eco-mode choice is observational and may depend on urgency, congestion, weather, route risk, and recent history,
+- use a small domain DAG to motivate a backdoor-style state,
+- exclude post-action variables and latent simulator columns from the deployable policy state.
 
-Suggested causal structure:
+Use language like:
 
-- confounder groups: time context, vehicle context, demand pressure, weather/traffic, route risk, recent history
-- action node: `eco_mode`
-- outcome node: reward / timeliness / safety / emissions
-
-Include one sentence like:
-
-To mitigate confounding, the framework uses a domain-guided backdoor set that captures shared causes of eco-mode choice and downstream operational outcomes while excluding latent and post-action variables from the deployable state.
+The causal design goal is not to prove full identification, but to construct a more credible pre-decision state for offline policy learning in urban logistics.
 
 **Step 2: Offline policy learning**
 
-Use two fitted Q iteration variants:
+Train two fitted Q iteration variants:
 
-- **Non-causal FQI**: uses the broader deployable state, including opaque proxy variables such as `risk_score`, `distance_km`, and `compatibility_violation`.
-- **Causal FQI**: uses the confounder-aware backdoor-adjustment state only.
+- **Non-causal FQI** with the broader deployable state including `risk_score`, `distance_km`, and `compatibility_violation`,
+- **Causal FQI** with the backdoor-guided state only.
 
-Explain why offline RL is needed:
+State plainly that this is a benchmark comparison:
 
-Live experimentation with eco-mode in logistics operations may degrade service or safety and is impractical in production environments.
+The comparison tests whether confounder-aware state design changes policy quality and deployability; it does not assume in advance that the causal-state policy will dominate every comparator.
 
-**Step 3: Support-constrained policy improvement and evaluation**
+**Step 3: Conservative policy improvement**
 
-State that the historical behavior policy \(P(a|s)\) is estimated with a calibrated classifier. The learned policy only overrides logged behavior when:
+Estimate the behavior policy with a calibrated classifier and allow overrides only when:
 
-- estimated action support is adequate, and
-- the Q-value gap exceeds a conservative threshold.
+- action support is adequate,
+- the Q-gap is large enough.
 
-Evaluation is done with off-policy estimators rather than live deployment.
+Frame this as operations support:
 
-**Workflow figure**
-
-Historical urban logistics logs → Confounder-aware state construction → Behavior policy estimation → Offline policy learning → Off-policy evaluation → Eco-mode recommendation
+The resulting policy is a **decision-support layer for eco-mode selection**, not a fully autonomous controller.
 
 ## 3.3 Baselines and evaluation logic
 
-Use these baselines:
+Baselines:
 
-1. **Logged behavior**
-2. **Always eco**
-3. **Never eco**
-4. **Heuristic risk rule**: a predicted lateness-risk threshold policy
-5. **Non-causal FQI**
-6. **Causal FQI**
+1. `logged_behavior`
+2. `always_eco`
+3. `never_eco`
+4. `heuristic_risk_rule`
+5. `non_causal_fqi`
+6. `causal_fqi`
+
+Keep the two causal ablations as appendix diagnostics:
+
+- `causal_no_history_fqi`
+- `causal_no_vehicle_id_fqi`
 
 Evaluate with:
 
-- expected policy value,
-- estimated lateness,
-- estimated CO2,
-- estimated on-time rate,
-- robustness under operational shifts,
-- fallback and low-support override rates.
+- doubly robust policy value as the primary headline metric,
+- IPS as a consistency check,
+- FQE as an appendix diagnostic,
+- estimated lateness, CO2, on-time rate, crash rate, and near-miss rate,
+- override, fallback, and low-support rates,
+- robustness across operational slices.
 
 # 4. Experimental Setup
 
 ## 4.1 Dataset and decision log construction
 
-Describe the dataset using concrete values:
+State the concrete values:
 
 - 96,000 logged operational records,
 - 120 dates,
 - 120 vehicles,
 - 15 urban zones,
-- observed binary action: `eco_mode`,
-- measured outcomes: `lateness_min`, `co2_kg`, `near_miss`, `crash`, `on_time`.
+- observed action `eco_mode`,
+- measured outcomes `lateness_min`, `co2_kg`, `near_miss`, `crash`, `on_time`.
 
-Explain decision-log construction:
+Explain:
 
 - each trajectory is defined by `date`-`vehicle_id`,
-- records are ordered by `hour` and stable row index,
-- each step stores current state, action, reward, terminal flag, and next state,
-- lagged sequential features are computed using only prior events within the same trajectory.
-
-State exclusions clearly:
-
-- do not use post-action variables such as `avg_speed_kmph`, `travel_time_min`, `fuel_liters`, `co2_kg`, `near_miss`, `crash`, `lateness_min`, `on_time` in the deployable state,
-- do not use latent columns in the deployable policy model,
-- keep latent variables only for optional appendix discussion.
+- rows are ordered by `hour` and row index,
+- lagged features use only prior events within a trajectory,
+- post-action and latent variables are excluded from the deployable state.
 
 ## 4.2 Implementation details
 
-Keep this compact:
+Keep this concise:
 
-- Python with `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`
+- Python with `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`, and `joblib`
 - temporal split by date into train / validation / test
-- calibrated behavior policy model
+- calibrated behavior model
 - fitted Q iteration for causal and non-causal policies
-- outcome models for reward decomposition
-- fixed random seed for reproducibility
+- outcome models for decomposed metrics
+- fixed seed for reproducibility
 
 ## 4.3 Evaluation protocol
 
 State:
 
 - held-out temporal test set,
-- self-normalized IPS,
-- doubly robust estimation,
-- fitted Q evaluation,
-- scenario tests on:
-  - high traffic,
-  - rain or event conditions,
-  - tight time windows,
-  - late-day operations.
+- doubly robust estimator for the main table,
+- self-normalized IPS for consistency,
+- FQE in the appendix,
+- bootstrap confidence intervals,
+- robustness slices:
+  - `high_traffic`
+  - `rain_or_event`
+  - `tight_window`
+  - `late_day`
 
-Add one fairness sentence:
+Add the fairness sentence:
 
-All policies are evaluated on the same historical partitions and the same logged support conditions.
+All policies are evaluated on the same historical partitions and under the same logged support conditions.
 
 # 5. Results and Discussion
 
-## 5.1 Policy performance against baselines
+## 5.1 Main policy comparison
 
-Main result table:
+Make the headline fully honest:
 
-|**Policy**|**Policy value**|**Expected lateness**|**Expected CO2**|**On-time rate**|**Fallback rate**|
-|---|---|---|---|---|---|
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
+- `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) but trails the broader non-causal comparator,
+- `heuristic_risk_rule` is also competitive at `-4.638`, showing that simpler policies remain strong baselines.
 
-Make only 3 points in the text:
+Interpretation:
 
-1. causal offline RL performs best or near-best on the primary reward,
-2. heuristics and static baselines expose the sustainability-service trade-off but are less adaptive,
-3. non-causal FQI is more sensitive to unstable proxy signals.
+The case study supports confounder-aware offline RL as a viable approach, but not a claim that causal FQI is the best overall policy in this benchmark.
 
-## 5.2 Why the causal policy helps
+## 5.2 What the causal framing contributes
 
-Explain:
+Make three points:
 
-- historical eco-mode choices are confounded by urgency and operating conditions,
-- causal adjustment reduces reliance on unstable correlational proxies,
-- support-constrained overrides make recommendations more conservative and believable.
+1. it enforces an honest pre-decision state design,
+2. it reduces the temptation to rely on opaque proxy variables,
+3. it supports conservative policy improvement suitable for operational decision support.
 
-Include one small figure:
+Do not claim that the causal model wins overall. Instead say:
 
-- causal graph, or
-- policy override conditions by scenario.
+The value of the causal framing in this paper is **credibility, interpretability, and deployment discipline**, not universal empirical dominance.
 
-## 5.3 Robustness under operational shift
+## 5.3 Ablations and robustness
 
-Show one compact robustness figure or table covering:
+Use the ablation results to make a modest point:
 
-- high traffic,
-- rain/events,
-- tight time windows,
-- late-day operations.
+- `causal_no_vehicle_id_fqi` reaches `-4.670`,
+- `causal_no_history_fqi` reaches `-4.687`,
+- `causal_fqi` reaches `-4.694`.
 
-State explicitly:
+Interpretation:
 
-The causal policy degrades less under operational shift than the non-causal alternative while preserving better trade-off quality than static rules.
+The causal-state family is relatively stable to removing history or vehicle identity, but the differences are small and should be read as sensitivity checks rather than proof of a unique causal mechanism.
+
+For robustness, describe the segment pattern truthfully:
+
+- `non_causal_fqi` is the strongest policy in all four evaluated segments,
+- the causal policy still improves over logged behavior in `high_traffic`, `rain_or_event`, and `tight_window`,
+- in `late_day`, `causal_fqi` falls slightly below logged behavior,
+- heuristic or static policies sometimes outperform the causal policy in stressed segments.
+
+Use this exact takeaway:
+
+The benchmark reveals **segment-dependent trade-offs and the need for conservative policy deployment**.
 
 ## 5.4 Practical interpretation
 
-End with one short managerial paragraph:
+End with a managerial paragraph:
 
-The learned policy should recommend eco mode more often under slack time windows and lower congestion, while reverting toward standard mode when service urgency, route risk, or operational stress is high. This positions the method as a decision-support layer rather than a fully autonomous controller.
+The project should be presented as a tool for recommending when eco mode is more defensible and when operators should fall back to logged behavior or simpler rules. That makes the method a credible **decision-support layer for eco-mode selection**, not a justification for autonomous control.
 
 # 6. Conclusion
 
-Summarize in 3 sentences:
+Conclude in three sentences:
 
-- the paper reframes urban logistics eco-mode selection as an offline sequential decision problem,
-- a confounder-aware offline RL policy improves the timeliness-safety-emissions trade-off compared with logged behavior and non-causal alternatives,
-- the study supports a shift from pure logistics prediction toward intervention-aware operational analytics.
+- The paper reframes eco-mode selection as an offline sequential decision problem in urban logistics.
+- The synthetic urban logistics case study shows that confounder-aware offline RL can improve over logged behavior and support intervention-aware logistics analytics.
+- The same results also show that stronger overall value can still come from a broader non-causal comparator, reinforcing the need for conservative interpretation and deployment.
 
-**Limitations and future work**
+## Limitations and future work
 
-- synthetic rather than real operational interventions,
-- binary action space,
-- no live field deployment,
-- future work can extend to richer control spaces, multiple simultaneous objectives, and partial observability.
+Keep these explicit:
+
+- synthetic data rather than field interventions,
+- binary action space only,
+- no live deployment,
+- no claim of full causal identification,
+- future work should test richer action spaces, partial observability, and real operational logs.

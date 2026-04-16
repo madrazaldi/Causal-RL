@@ -86,7 +86,6 @@ def load_inputs() -> tuple[pd.DataFrame, dict, dict]:
     models = {
         "behavior": joblib.load(MODELS_DIR / "behavior_model.joblib"),
         "heuristic": joblib.load(MODELS_DIR / "heuristic_model.joblib"),
-        "reward_outcome": joblib.load(MODELS_DIR / "reward_outcome_model.joblib"),
         "outcome_targets": joblib.load(MODELS_DIR / "outcome_targets.joblib"),
     }
     for policy_name in LEARNED_POLICY_REGISTRY:
