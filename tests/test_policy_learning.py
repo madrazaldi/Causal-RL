@@ -59,3 +59,13 @@ def test_support_constraint_falls_back_to_logged_action() -> None:
     )
     assert "used_fallback" in result.columns
     assert (result.loc[result["used_fallback"] == 1, "policy_action"].to_numpy() == df.loc[result["used_fallback"] == 1, "action"].to_numpy()).all()
+
+
+def test_get_feature_importances_returns_dataframe() -> None:
+    df = make_policy_frame()
+    policy = FittedQPolicy(["hour", "traffic_index", "vehicle_type"], iterations=2).fit(df)
+    fi = policy.get_feature_importances(df, action=1, n_repeats=2)
+    assert isinstance(fi, pd.DataFrame)
+    assert set(fi.columns) >= {"feature", "importance_mean", "importance_std"}
+    assert len(fi) > 0
+    assert fi["importance_mean"].notna().all()

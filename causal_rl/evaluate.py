@@ -11,7 +11,13 @@ from .config import (
     ABLATION_COMPARISON_PATH,
     BOOTSTRAP_REPS,
     BOOTSTRAP_SUMMARY_PATH,
+    CAUSAL_BACKDOOR_COLUMNS,
+    CLUSTER_BOOTSTRAP_PATH,
+    COMMON_SUPPORT_PATH,
     ESTIMATOR_DIAGNOSTICS_PATH,
+    FQE_CONVERGENCE_PATH,
+    FQE_N_REPEATS,
+    FEATURE_IMPORTANCE_PATH,
     INTERPRETATION_SUMMARY_PATH,
     LEARNED_POLICY_REGISTRY,
     MAIN_RESULTS_TABLE_PATH,
@@ -47,6 +53,7 @@ CORE_POLICY_NAMES = [
 ABLATION_POLICY_NAMES = [
     "causal_no_history_fqi",
     "causal_no_vehicle_id_fqi",
+    "minimal_fqi",
 ]
 BOOTSTRAP_METRICS = [
     "policy_value_plugin",
@@ -380,60 +387,53 @@ def policy_callable(policy_name: str, models: dict, metadata: dict):
     return _callable
 
 
-def build_support_sweep_df(
-    test_df: pd.DataFrame,
+def _run_sweep_on_df(
+    eval_df: pd.DataFrame,
     metadata: dict,
     models: dict,
-    run_ablations: bool,
-) -> pd.DataFrame:
-    learned_policy_names = ["non_causal_fqi", "causal_fqi"]
-    if run_ablations:
-        learned_policy_names.extend(ABLATION_POLICY_NAMES)
-
-    reward_values = test_df[REWARD_COLUMNS["primary"]].to_numpy(dtype=float)
+    policy_names: list[str],
+    value_col_prefix: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Run the support-threshold grid over eval_df and return (rows_df, pair_summary)."""
+    reward_values = eval_df[REWARD_COLUMNS["primary"]].to_numpy(dtype=float)
     rows = []
-    for policy_name in learned_policy_names:
+    for policy_name in policy_names:
         for min_propensity in SUPPORT_SWEEP_PROPENSITIES:
             for q_gap_threshold in SUPPORT_SWEEP_Q_GAPS:
                 policy_output = models[policy_name].policy_action(
-                    test_df,
+                    eval_df,
                     models["behavior"],
                     metadata["causal_state_columns"],
                     min_propensity=min_propensity,
                     q_gap_threshold=q_gap_threshold,
                 )
-                cache = prepare_policy_cache(test_df, metadata, models, policy_output)
+                cache = prepare_policy_cache(eval_df, metadata, models, policy_output)
                 summary = summarize_point_metrics(cache, reward_values, "primary")
                 rows.append(
                     {
                         "policy": policy_name,
                         "min_propensity": min_propensity,
                         "q_gap_threshold": q_gap_threshold,
-                        "policy_value_dr": summary["policy_value_dr"],
-                        "policy_value_ips": summary["policy_value_ips"],
-                        "policy_value_plugin": summary["policy_value_plugin"],
-                        "override_rate": summary["override_rate"],
-                        "fallback_rate": summary["fallback_rate"],
-                        "low_support_rate": summary["low_support_rate"],
-                        "match_rate": summary["match_rate"],
-                        "eco_rate": summary["eco_rate"],
-                        "is_default": int(
-                            np.isclose(min_propensity, MIN_PROPENSITY)
-                            and np.isclose(q_gap_threshold, Q_GAP_THRESHOLD)
-                        ),
+                        f"{value_col_prefix}_policy_value_dr": summary["policy_value_dr"],
+                        f"{value_col_prefix}_policy_value_ips": summary["policy_value_ips"],
+                        f"{value_col_prefix}_policy_value_plugin": summary["policy_value_plugin"],
+                        f"{value_col_prefix}_override_rate": summary["override_rate"],
+                        f"{value_col_prefix}_fallback_rate": summary["fallback_rate"],
+                        f"{value_col_prefix}_low_support_rate": summary["low_support_rate"],
+                        f"{value_col_prefix}_match_rate": summary["match_rate"],
+                        f"{value_col_prefix}_eco_rate": summary["eco_rate"],
                     }
                 )
-    sweep_df = pd.DataFrame(rows)
-    if sweep_df.empty:
-        return sweep_df
-
+    rows_df = pd.DataFrame(rows)
+    if rows_df.empty:
+        return rows_df, pd.DataFrame()
     pair_summary = (
-        sweep_df.groupby(["min_propensity", "q_gap_threshold"], as_index=False)
+        rows_df.groupby(["min_propensity", "q_gap_threshold"], as_index=False)
         .agg(
-            mean_policy_value_dr=("policy_value_dr", "mean"),
-            mean_override_rate=("override_rate", "mean"),
-            mean_fallback_rate=("fallback_rate", "mean"),
-            mean_low_support_rate=("low_support_rate", "mean"),
+            mean_policy_value_dr=(f"{value_col_prefix}_policy_value_dr", "mean"),
+            mean_override_rate=(f"{value_col_prefix}_override_rate", "mean"),
+            mean_fallback_rate=(f"{value_col_prefix}_fallback_rate", "mean"),
+            mean_low_support_rate=(f"{value_col_prefix}_low_support_rate", "mean"),
         )
     )
     pair_summary["conservative_score"] = (
@@ -441,15 +441,51 @@ def build_support_sweep_df(
         - 0.5 * pair_summary["mean_override_rate"]
         - 0.25 * pair_summary["mean_low_support_rate"]
     )
-    best_pair = pair_summary.sort_values(
+    return rows_df, pair_summary
+
+
+def build_support_sweep_df(
+    val_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    metadata: dict,
+    models: dict,
+    run_ablations: bool,
+) -> tuple[pd.DataFrame, dict]:
+    """Run support-threshold sweep on val_df for selection; evaluate selected pair on test_df.
+
+    Returns (sweep_df, best_thresholds) where best_thresholds contains the val-selected
+    min_propensity and q_gap_threshold to use for main paper results.
+    """
+    learned_policy_names = ["non_causal_fqi", "causal_fqi"]
+    if run_ablations:
+        learned_policy_names.extend(ABLATION_POLICY_NAMES)
+
+    val_rows_df, val_pair_summary = _run_sweep_on_df(val_df, metadata, models, learned_policy_names, "val")
+    test_rows_df, _ = _run_sweep_on_df(test_df, metadata, models, learned_policy_names, "test")
+
+    if val_rows_df.empty:
+        return pd.DataFrame(), {"min_propensity": MIN_PROPENSITY, "q_gap_threshold": Q_GAP_THRESHOLD}
+
+    best_pair = val_pair_summary.sort_values(
         ["conservative_score", "mean_override_rate", "mean_fallback_rate"],
         ascending=[False, True, True],
     ).iloc[0]
+    best_thresholds = {
+        "min_propensity": float(best_pair["min_propensity"]),
+        "q_gap_threshold": float(best_pair["q_gap_threshold"]),
+    }
+
+    merge_keys = ["policy", "min_propensity", "q_gap_threshold"]
+    sweep_df = val_rows_df.merge(test_rows_df, on=merge_keys, how="left")
+    sweep_df["is_default"] = (
+        np.isclose(sweep_df["min_propensity"], MIN_PROPENSITY)
+        & np.isclose(sweep_df["q_gap_threshold"], Q_GAP_THRESHOLD)
+    ).astype(int)
     sweep_df["selected_for_main_paper"] = (
         np.isclose(sweep_df["min_propensity"], best_pair["min_propensity"])
         & np.isclose(sweep_df["q_gap_threshold"], best_pair["q_gap_threshold"])
     ).astype(int)
-    return sweep_df
+    return sweep_df, best_thresholds
 
 
 def add_bootstrap_columns(df: pd.DataFrame, bootstrap_df: pd.DataFrame, index_columns: list[str]) -> pd.DataFrame:
@@ -487,6 +523,11 @@ def build_ablation_comparison(metrics_df: pd.DataFrame, metadata: dict) -> pd.Da
     notes = {
         "causal_fqi": "Reference confounder-aware policy with the full backdoor-guided state.",
         "non_causal_fqi": "Uses broader deployable proxies, including risk and compatibility features, as the non-causal comparator.",
+        "minimal_fqi": (
+            "Minimal 5-feature baseline (hour, demand_size, time_window_tightness, "
+            "traffic_index, dispatch_delay_min). Quantifies the value of the full "
+            "causal backdoor state over the simplest operationally available features."
+        ),
     }
     for policy_name, spec in metadata.get("ablation_definitions", {}).items():
         notes[policy_name] = spec["note"]
@@ -576,6 +617,173 @@ def build_interpretation_summary(metrics_df: pd.DataFrame, robustness_df: pd.Dat
     return pd.DataFrame(rows)
 
 
+def cluster_bootstrap_confidence_intervals(
+    cache: dict,
+    reward_values: np.ndarray,
+    reward_name: str,
+    policy_name: str,
+    bootstrap_reps: int,
+    trajectory_ids: np.ndarray,
+    scope: str = "overall",
+    segment: str | None = None,
+    mask: np.ndarray | pd.Series | None = None,
+) -> list[dict]:
+    """Bootstrap by resampling full trajectories (clusters) instead of individual rows."""
+    if bootstrap_reps <= 0:
+        return []
+    masked_cache = subset_cache(cache, mask)
+    masked_rewards = np.asarray(reward_values, dtype=float)
+    masked_traj_ids = np.asarray(trajectory_ids)
+    if mask is not None:
+        mask_array = np.asarray(mask, dtype=bool)
+        masked_rewards = masked_rewards[mask_array]
+        masked_traj_ids = masked_traj_ids[mask_array]
+    if len(masked_rewards) == 0:
+        return []
+
+    unique_trajs = np.unique(masked_traj_ids)
+    n_trajs = len(unique_trajs)
+    point_metrics = summarize_point_metrics(masked_cache, masked_rewards, reward_name)
+    distributions = {metric: np.empty(bootstrap_reps, dtype=float) for metric in BOOTSTRAP_METRICS}
+    rng = np.random.default_rng(stable_seed(policy_name, reward_name, scope, segment or "overall", "cluster"))
+
+    for rep in range(bootstrap_reps):
+        sampled_trajs = rng.choice(unique_trajs, size=n_trajs, replace=True)
+        row_indices = np.concatenate([np.where(masked_traj_ids == t)[0] for t in sampled_trajs])
+        sample_cache = {
+            "action": masked_cache["action"][row_indices],
+            "logged_actions": masked_cache["logged_actions"][row_indices],
+            "logged_propensity": masked_cache["logged_propensity"][row_indices],
+            "matched": masked_cache["matched"][row_indices],
+            "used_fallback": masked_cache["used_fallback"][row_indices],
+            "low_support": masked_cache["low_support"][row_indices],
+            "policy_components": {k: v[row_indices] for k, v in masked_cache["policy_components"].items()},
+            "logged_components": {k: v[row_indices] for k, v in masked_cache["logged_components"].items()},
+            "policy_rewards": {k: v[row_indices] for k, v in masked_cache["policy_rewards"].items()},
+            "logged_rewards": {k: v[row_indices] for k, v in masked_cache["logged_rewards"].items()},
+        }
+        sample_metrics = summarize_point_metrics(sample_cache, masked_rewards[row_indices], reward_name)
+        for metric in BOOTSTRAP_METRICS:
+            distributions[metric][rep] = sample_metrics[metric]
+
+    rows = []
+    for metric in BOOTSTRAP_METRICS:
+        ci_low, ci_high = np.quantile(distributions[metric], [0.025, 0.975])
+        rows.append(
+            {
+                "scope": scope,
+                "segment": segment or "",
+                "policy": policy_name,
+                "reward_name": reward_name,
+                "metric": metric,
+                "point_estimate": point_metrics[metric],
+                "ci_low": float(ci_low),
+                "ci_high": float(ci_high),
+                "bootstrap_reps": bootstrap_reps,
+                "bootstrap_method": "cluster",
+            }
+        )
+    return rows
+
+
+def compute_common_support_diagnostics(
+    policy_caches: dict[str, dict],
+) -> pd.DataFrame:
+    """Compute propensity overlap diagnostics per policy from pre-computed caches."""
+    rows = []
+    for policy_name, cache in policy_caches.items():
+        prop = cache["logged_propensity"]
+        rows.append(
+            {
+                "policy": policy_name,
+                "n_rows": len(prop),
+                "propensity_min": float(np.min(prop)),
+                "propensity_max": float(np.max(prop)),
+                "propensity_mean": float(np.mean(prop)),
+                "propensity_p5": float(np.quantile(prop, 0.05)),
+                "pct_below_tau_mu": float(np.mean(prop < MIN_PROPENSITY) * 100),
+                "effective_override_count": int(np.sum(~cache["matched"])),
+                "pct_override_low_support": float(
+                    np.mean(~cache["matched"] & (prop < MIN_PROPENSITY)) * 100
+                ),
+                "eco_rate": float(np.mean(cache["action"])),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def compute_late_day_failure_diagnosis(
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    policy_caches: dict[str, dict],
+) -> pd.DataFrame:
+    """Diagnose why causal_fqi underperforms in late_day (hour >= 17) operations."""
+    key_features = ["traffic_index", "time_window_tightness", "dispatch_delay_min", "rolling_mean_traffic"]
+    train_late = train_df[train_df["hour"] >= 17]
+    test_late = test_df[test_df["hour"] >= 17]
+
+    rows = []
+    for feat in key_features:
+        if feat not in train_df.columns or feat not in test_df.columns:
+            continue
+        rows.append(
+            {
+                "diagnostic_type": "feature_distribution",
+                "feature_or_hour": feat,
+                "train_mean": float(train_late[feat].mean()) if len(train_late) > 0 else np.nan,
+                "train_std": float(train_late[feat].std()) if len(train_late) > 0 else np.nan,
+                "test_mean": float(test_late[feat].mean()) if len(test_late) > 0 else np.nan,
+                "test_std": float(test_late[feat].std()) if len(test_late) > 0 else np.nan,
+                "delta_mean": float(test_late[feat].mean() - train_late[feat].mean())
+                if len(train_late) > 0 and len(test_late) > 0
+                else np.nan,
+            }
+        )
+
+    for hour in range(17, 22):
+        hour_mask = test_df["hour"] == hour
+        if not hour_mask.any():
+            continue
+        row: dict = {
+            "diagnostic_type": "eco_rate_by_hour",
+            "feature_or_hour": str(hour),
+            "train_mean": np.nan,
+            "train_std": np.nan,
+            "test_mean": np.nan,
+            "test_std": np.nan,
+            "delta_mean": np.nan,
+        }
+        for policy_name in ["causal_fqi", "logged_behavior"]:
+            if policy_name in policy_caches:
+                eco = float(np.mean(policy_caches[policy_name]["action"][hour_mask.to_numpy()]))
+                row[f"{policy_name}_eco_rate"] = eco
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def compute_feature_importance_summary(
+    models: dict,
+    train_df: pd.DataFrame,
+    n_repeats: int = FQE_N_REPEATS,
+) -> pd.DataFrame:
+    """Compute permutation importance for the causal_fqi Q-function (averaged over both actions)."""
+    if "causal_fqi" not in models:
+        return pd.DataFrame(columns=["feature", "importance_mean", "importance_std"])
+    causal_fqi = models["causal_fqi"]
+    fi_a1 = causal_fqi.get_feature_importances(train_df, action=1, n_repeats=n_repeats)
+    fi_a0 = causal_fqi.get_feature_importances(train_df, action=0, n_repeats=n_repeats)
+    merged = fi_a1.merge(fi_a0, on="feature", suffixes=("_a1", "_a0"))
+    merged["importance_mean"] = (merged["importance_mean_a1"] + merged["importance_mean_a0"]) / 2
+    merged["importance_std"] = (merged["importance_std_a1"] + merged["importance_std_a0"]) / 2
+    return (
+        merged[["feature", "importance_mean", "importance_std"]]
+        .sort_values("importance_mean", ascending=False)
+        .head(20)
+        .reset_index(drop=True)
+    )
+
+
 def evaluate_all(
     bootstrap_reps: int = BOOTSTRAP_REPS,
     run_ablations: bool = True,
@@ -583,24 +791,43 @@ def evaluate_all(
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df, metadata, models = load_inputs()
     train_val_df = df[df["split"].isin(["train", "val"])].copy()
+    train_df = df[df["split"] == "train"].copy()
+    val_df = df[df["split"] == "val"].copy()
     test_df = df[df["split"] == "test"].copy()
-    policy_outputs = get_policy_outputs(test_df, metadata, models, run_ablations=run_ablations)
+
+    support_sweep_df, best_thresholds = build_support_sweep_df(
+        val_df, test_df, metadata, models, run_ablations=run_ablations
+    )
+    policy_outputs = get_policy_outputs(
+        test_df,
+        metadata,
+        models,
+        run_ablations=run_ablations,
+        min_propensity=best_thresholds["min_propensity"],
+        q_gap_threshold=best_thresholds["q_gap_threshold"],
+    )
 
     actions_frame = test_df[["trajectory_id", "t", "split", "action", "reward"]].copy()
     metric_rows = []
     robustness_rows = []
     reward_rows = []
     bootstrap_rows = []
+    cluster_bootstrap_rows = []
+    policy_caches: dict[str, dict] = {}
+    fqe_convergence_history: dict[str, list[float]] = {}
+    trajectory_ids = test_df["trajectory_id"].to_numpy()
 
     for policy_name, policy_output in policy_outputs.items():
         actions_frame[f"{policy_name}_action"] = policy_output["policy_action"].to_numpy(dtype=int)
         primary_reward = test_df[REWARD_COLUMNS["primary"]].to_numpy(dtype=float)
         policy_action_values = policy_output["policy_action"].to_numpy(dtype=int)
-        fqe_value = FittedQEvaluator(metadata["causal_state_columns"]).fit(
-            train_val_df.copy(), policy_callable(policy_name, models, metadata), reward_column="reward"
-        ).evaluate_policy_value(test_df, policy_action_values)
+        fqe_evaluator = FittedQEvaluator(metadata["causal_state_columns"])
+        fqe_evaluator.fit(train_val_df.copy(), policy_callable(policy_name, models, metadata), reward_column="reward")
+        fqe_value = fqe_evaluator.evaluate_policy_value(test_df, policy_action_values)
+        fqe_convergence_history[policy_name] = fqe_evaluator.convergence_history
 
         cache = prepare_policy_cache(test_df, metadata, models, policy_output)
+        policy_caches[policy_name] = cache
         metric_rows.append(
             compute_policy_metrics(
                 cache,
@@ -617,6 +844,17 @@ def evaluate_all(
                 "primary",
                 policy_name,
                 bootstrap_reps=bootstrap_reps,
+                scope="overall",
+            )
+        )
+        cluster_bootstrap_rows.extend(
+            cluster_bootstrap_confidence_intervals(
+                cache,
+                primary_reward,
+                "primary",
+                policy_name,
+                bootstrap_reps=bootstrap_reps,
+                trajectory_ids=trajectory_ids,
                 scope="overall",
             )
         )
@@ -709,10 +947,21 @@ def evaluate_all(
         ],
     )
 
-    support_sweep_df = build_support_sweep_df(test_df, metadata, models, run_ablations=run_ablations)
     ablation_df = build_ablation_comparison(metrics_df, metadata)
     diagnostics_df = build_estimator_diagnostics(metrics_df)
     interpretation_df = build_interpretation_summary(metrics_df, robustness_df)
+
+    common_support_df = compute_common_support_diagnostics(policy_caches)
+    late_day_df = compute_late_day_failure_diagnosis(train_df, test_df, policy_caches)
+    feature_importance_df = compute_feature_importance_summary(models, train_df)
+    cluster_bootstrap_df = pd.DataFrame(cluster_bootstrap_rows)
+    fqe_convergence_df = pd.DataFrame(
+        [
+            {"policy": policy_name, "iteration": i, "mean_abs_q_change": delta}
+            for policy_name, history in fqe_convergence_history.items()
+            for i, delta in enumerate(history)
+        ]
+    )
 
     actions_frame.to_csv(POLICY_ACTIONS_PATH, index=False)
     metrics_df.to_csv(METRICS_PATH, index=False)
@@ -723,6 +972,11 @@ def evaluate_all(
     support_sweep_df.to_csv(SUPPORT_SWEEP_PATH, index=False)
     ablation_df.to_csv(ABLATION_COMPARISON_PATH, index=False)
     interpretation_df.to_csv(INTERPRETATION_SUMMARY_PATH, index=False)
+    common_support_df.to_csv(COMMON_SUPPORT_PATH, index=False)
+    late_day_df.to_csv(RESULTS_DIR / "late_day_diagnosis.csv", index=False)
+    feature_importance_df.to_csv(FEATURE_IMPORTANCE_PATH, index=False)
+    cluster_bootstrap_df.to_csv(CLUSTER_BOOTSTRAP_PATH, index=False)
+    fqe_convergence_df.to_csv(FQE_CONVERGENCE_PATH, index=False)
     metrics_df[
         [
             "policy",
@@ -763,9 +1017,13 @@ def main() -> None:
     print(f"Saved robustness results to {ROBUSTNESS_PATH} with {len(robustness_df)} rows")
     print(f"Saved reward sensitivity results to {REWARD_SENSITIVITY_PATH} with {len(reward_df)} rows")
     print(f"Saved bootstrap intervals to {BOOTSTRAP_SUMMARY_PATH}")
-    print(f"Saved support sweep to {SUPPORT_SWEEP_PATH}")
+    print(f"Saved cluster bootstrap intervals to {CLUSTER_BOOTSTRAP_PATH}")
+    print(f"Saved support sweep to {SUPPORT_SWEEP_PATH} (thresholds selected on val set)")
     print(f"Saved ablation comparison to {ABLATION_COMPARISON_PATH}")
     print(f"Saved interpretation summary to {INTERPRETATION_SUMMARY_PATH}")
+    print(f"Saved common support diagnostics to {COMMON_SUPPORT_PATH}")
+    print(f"Saved feature importance to {FEATURE_IMPORTANCE_PATH}")
+    print(f"Saved FQE convergence to {FQE_CONVERGENCE_PATH}")
 
 
 if __name__ == "__main__":

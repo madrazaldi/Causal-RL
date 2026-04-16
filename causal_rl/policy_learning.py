@@ -18,6 +18,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from .config import (
     ACTION_COLUMN,
     ABLATION_STATE_REGISTRY,
+    CAUSAL_BACKDOOR_COLUMNS,
     DECISION_LOG_PATH,
     FQI_ITERATIONS,
     GAMMA,
@@ -25,6 +26,7 @@ from .config import (
     MAIN_RESULTS_TABLE_PATH,
     METADATA_PATH,
     MIN_PROPENSITY,
+    MINIMAL_STATE_COLUMNS,
     MODELS_DIR,
     OUTCOME_MODEL_TARGETS,
     POLICY_SUMMARY_PATH,
@@ -185,6 +187,50 @@ class FittedQPolicy:
         )
 
 
+    def get_feature_importances(
+        self,
+        df: pd.DataFrame,
+        action: int = 1,
+        n_repeats: int = 5,
+        random_state: int = SEED,
+    ) -> pd.DataFrame:
+        from sklearn.inspection import permutation_importance
+
+        if self.preprocessor is None or action not in self.models:
+            raise RuntimeError("Policy must be fit before calling get_feature_importances.")
+        sample = df.sample(n=min(5000, len(df)), random_state=random_state)
+        X = self.preprocessor.transform(sample[self.state_columns])
+        y = self.models[action].predict(X)
+        result = permutation_importance(
+            self.models[action], X, y, n_repeats=n_repeats, random_state=random_state
+        )
+        raw_names = list(self.preprocessor.get_feature_names_out())
+        base_names = []
+        for name in raw_names:
+            if name.startswith("num__"):
+                base_names.append(name[len("num__"):])
+            elif name.startswith("cat__"):
+                inner = name[len("cat__"):]
+                parts = inner.rsplit("_", 1)
+                base_names.append(parts[0] if len(parts) == 2 else inner)
+            else:
+                base_names.append(name)
+        importance_df = pd.DataFrame({
+            "feature": raw_names,
+            "base_feature": base_names,
+            "importance_mean": result.importances_mean,
+            "importance_std": result.importances_std,
+        })
+        agg = (
+            importance_df.groupby("base_feature", as_index=False)
+            .agg(importance_mean=("importance_mean", "sum"), importance_std=("importance_std", "mean"))
+            .rename(columns={"base_feature": "feature"})
+            .sort_values("importance_mean", ascending=False)
+            .reset_index(drop=True)
+        )
+        return agg
+
+
 def fit_heuristic_risk_model(df: pd.DataFrame, state_columns: list[str]) -> Pipeline:
     preprocessor = build_preprocessor(df, state_columns)
     model = HistGradientBoostingClassifier(
@@ -248,6 +294,15 @@ def train_all_policies() -> PolicyArtifacts:
             "base_policy": "causal_fqi",
             "removed_columns": sorted(set(ABLATION_STATE_REGISTRY["causal_fqi"]) - set(ABLATION_STATE_REGISTRY["causal_no_vehicle_id_fqi"])),
             "note": "Removes vehicle identity to test whether policy gains depend on vehicle-specific memorization.",
+        },
+        "minimal_fqi": {
+            "base_policy": "causal_fqi",
+            "removed_columns": sorted(set(CAUSAL_BACKDOOR_COLUMNS) - set(MINIMAL_STATE_COLUMNS)),
+            "note": (
+                "Minimal 5-feature baseline (hour, demand_size, time_window_tightness, "
+                "traffic_index, dispatch_delay_min). Quantifies the value of the full "
+                "causal backdoor state over the simplest operationally available features."
+            ),
         },
     }
     return PolicyArtifacts(

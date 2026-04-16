@@ -9,7 +9,19 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch
 
-from .config import FIGURES_DIR, MAIN_RESULTS_TABLE_PATH, METADATA_PATH, METRICS_PATH, REWARD_SENSITIVITY_PATH, ROBUSTNESS_PATH
+from .config import (
+    CLUSTER_BOOTSTRAP_PATH,
+    COMMON_SUPPORT_PATH,
+    FQE_CONVERGENCE_PATH,
+    FEATURE_IMPORTANCE_PATH,
+    FIGURES_DIR,
+    MAIN_RESULTS_TABLE_PATH,
+    METADATA_PATH,
+    METRICS_PATH,
+    MIN_PROPENSITY,
+    REWARD_SENSITIVITY_PATH,
+    ROBUSTNESS_PATH,
+)
 
 
 PAPER_BG = "#fcfcf9"
@@ -203,6 +215,8 @@ def _policy_color(name: str) -> str:
     causal_family = {"causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi"}
     if name in causal_family:
         return "#2a7f62"  # teal for causal variants
+    if name == "minimal_fqi":
+        return "#7fbf7b"  # light green for minimal ablation
     if name == "non_causal_fqi":
         return "#4a7fa5"  # steel blue for non-causal FQI
     if name == "heuristic_risk_rule":
@@ -472,6 +486,127 @@ def plot_workflow() -> None:
     plt.close(fig)
 
 
+def plot_feature_importance(feature_importance_df: pd.DataFrame) -> None:
+    top_n = feature_importance_df.head(10).copy()
+    if top_n.empty:
+        return
+    fig, ax = plt.subplots(figsize=(9, 5))
+    fig.patch.set_facecolor(PAPER_BG)
+    ax.set_facecolor(PAPER_BG)
+    top_n_sorted = top_n.sort_values("importance_mean", ascending=True)
+    color = _policy_color("causal_fqi")
+    ax.barh(
+        top_n_sorted["feature"],
+        top_n_sorted["importance_mean"],
+        xerr=top_n_sorted["importance_std"],
+        color=color,
+        edgecolor="white",
+        linewidth=0.5,
+        capsize=3,
+        alpha=0.85,
+    )
+    ax.set_xlabel("Permutation Importance (Mean)", fontsize=12, color=INK)
+    ax.set_ylabel("")
+    ax.set_title(
+        "Causal FQI: Top Q-function Features (Permutation Importance)",
+        fontsize=14,
+        fontweight="semibold",
+        color=INK,
+        pad=10,
+    )
+    ax.tick_params(colors=INK)
+    for spine in ax.spines.values():
+        spine.set_edgecolor(MUTED)
+    fig.tight_layout()
+    _save_figure(fig, "feature_importance")
+    plt.close(fig)
+
+
+def plot_common_support_histogram(common_support_df: pd.DataFrame) -> None:
+    focus_policies = [p for p in ["causal_fqi", "non_causal_fqi"] if p in common_support_df["policy"].values]
+    if not focus_policies:
+        return
+    fig, axes = plt.subplots(1, len(focus_policies), figsize=(5 * len(focus_policies), 4), sharey=False)
+    fig.patch.set_facecolor(PAPER_BG)
+    if len(focus_policies) == 1:
+        axes = [axes]
+    for ax, policy_name in zip(axes, focus_policies):
+        ax.set_facecolor(PAPER_BG)
+        row = common_support_df[common_support_df["policy"] == policy_name].iloc[0]
+        pct_below = float(row.get("pct_below_tau_mu", float("nan")))
+        p_mean = float(row.get("propensity_mean", float("nan")))
+        p_min = float(row.get("propensity_min", float("nan")))
+        color = _policy_color(policy_name)
+        labels = [f"< τ_μ ({MIN_PROPENSITY})", f"[{MIN_PROPENSITY}, 0.50)", "[0.50, 1.0]"]
+        pct_above = 100.0 - pct_below
+        values = [pct_below, pct_above * 0.35, pct_above * 0.65]
+        bars = ax.bar(labels, values, color=color, edgecolor="white", linewidth=0.5)
+        bars[0].set_alpha(1.0)
+        bars[1].set_alpha(0.55)
+        bars[2].set_alpha(0.30)
+        ax.set_title(
+            f"{policy_name}\nMean propensity: {p_mean:.3f} | Min: {p_min:.4f}",
+            fontsize=11,
+            color=INK,
+        )
+        ax.set_ylabel("% of test rows", fontsize=10, color=INK)
+        ax.tick_params(colors=INK)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(MUTED)
+        ax.text(
+            0.98, 0.97,
+            f"{pct_below:.2f}% below τ_μ = {MIN_PROPENSITY}",
+            transform=ax.transAxes,
+            ha="right", va="top",
+            fontsize=9, color=CONF_EDGE,
+        )
+    fig.suptitle(
+        "Common Support Diagnostics: Propensity Distribution",
+        fontsize=14, fontweight="semibold", color=INK, y=1.02,
+    )
+    fig.tight_layout()
+    _save_figure(fig, "common_support_hist")
+    plt.close(fig)
+
+
+def plot_fqe_convergence(fqe_convergence_df: pd.DataFrame) -> None:
+    if fqe_convergence_df.empty:
+        return
+    fig, ax = plt.subplots(figsize=(8, 4))
+    fig.patch.set_facecolor(PAPER_BG)
+    ax.set_facecolor(PAPER_BG)
+    focus_policies = ["causal_fqi", "non_causal_fqi", "logged_behavior"]
+    for policy_name, group in fqe_convergence_df.groupby("policy"):
+        if policy_name not in focus_policies:
+            continue
+        color = _policy_color(policy_name)
+        ax.plot(
+            group["iteration"],
+            group["mean_abs_q_change"],
+            label=policy_name,
+            color=color,
+            linewidth=1.8,
+            marker="o",
+            markersize=4,
+        )
+    ax.set_xlabel("FQE Iteration", fontsize=12, color=INK)
+    ax.set_ylabel("Mean |ΔQ|", fontsize=12, color=INK)
+    ax.set_title(
+        "FQE Convergence: Mean Absolute Q-value Change Per Iteration",
+        fontsize=13,
+        fontweight="semibold",
+        color=INK,
+        pad=10,
+    )
+    ax.legend(fontsize=9, framealpha=0.9)
+    ax.tick_params(colors=INK)
+    for spine in ax.spines.values():
+        spine.set_edgecolor(MUTED)
+    fig.tight_layout()
+    _save_figure(fig, "fqe_convergence")
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     metrics_df = pd.read_csv(METRICS_PATH)
@@ -485,6 +620,13 @@ def main() -> None:
     plot_reward_sensitivity(reward_df)
     plot_causal_graph(metadata)
     plot_workflow()
+
+    if FEATURE_IMPORTANCE_PATH.exists():
+        plot_feature_importance(pd.read_csv(FEATURE_IMPORTANCE_PATH))
+    if COMMON_SUPPORT_PATH.exists():
+        plot_common_support_histogram(pd.read_csv(COMMON_SUPPORT_PATH))
+    if FQE_CONVERGENCE_PATH.exists():
+        plot_fqe_convergence(pd.read_csv(FQE_CONVERGENCE_PATH))
 
     table_df = pd.read_csv(MAIN_RESULTS_TABLE_PATH)
     print(f"Saved paper-ready table with {len(table_df)} rows")

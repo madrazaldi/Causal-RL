@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingRegressor
 
-from .config import FQI_ITERATIONS, GAMMA, SEED
+from .config import FQE_ITERATIONS, GAMMA, SEED
 from .policy_learning import build_preprocessor
 
 
@@ -36,12 +36,13 @@ def doubly_robust(
 
 
 class FittedQEvaluator:
-    def __init__(self, state_columns: list[str], gamma: float = GAMMA, iterations: int = FQI_ITERATIONS) -> None:
+    def __init__(self, state_columns: list[str], gamma: float = GAMMA, iterations: int = FQE_ITERATIONS) -> None:
         self.state_columns = state_columns
         self.gamma = gamma
         self.iterations = iterations
         self.preprocessor: ColumnTransformer | None = None
         self.models: dict[int, object] = {}
+        self.convergence_history: list[float] = []
 
     def fit(self, df: pd.DataFrame, policy_fn, reward_column: str = "reward") -> "FittedQEvaluator":
         self.preprocessor = build_preprocessor(df, self.state_columns)
@@ -54,8 +55,10 @@ class FittedQEvaluator:
         done = df["done"].to_numpy(dtype=int)
         policy_next = policy_fn(next_df)
         q_next = np.zeros(len(df), dtype=float)
+        self.convergence_history = []
 
         for iteration in range(self.iterations):
+            q_prev = q_next.copy()
             targets = rewards + self.gamma * (1.0 - done) * q_next
             for action in (0, 1):
                 mask = actions == action
@@ -68,6 +71,7 @@ class FittedQEvaluator:
                 model.fit(X_state[mask], targets[mask])
                 self.models[action] = model
             q_next = np.column_stack([self.models[a].predict(X_next) for a in (0, 1)])[np.arange(len(df)), policy_next]
+            self.convergence_history.append(float(np.mean(np.abs(q_next - q_prev))))
         return self
 
     def evaluate_policy_value(self, df: pd.DataFrame, policy_actions: np.ndarray) -> float:

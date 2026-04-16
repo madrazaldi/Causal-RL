@@ -24,10 +24,16 @@ SUPPORT_SWEEP_PATH = RESULTS_DIR / "support_threshold_sweep.csv"
 ABLATION_COMPARISON_PATH = RESULTS_DIR / "ablation_comparison.csv"
 INTERPRETATION_SUMMARY_PATH = RESULTS_DIR / "interpretation_summary.csv"
 SUBMISSION_ASSET_NOTE_PATH = ROOT / "IEEM_submission_assets.md"
+COMMON_SUPPORT_PATH = RESULTS_DIR / "common_support_diagnostics.csv"
+FEATURE_IMPORTANCE_PATH = RESULTS_DIR / "feature_importance.csv"
+CLUSTER_BOOTSTRAP_PATH = RESULTS_DIR / "cluster_bootstrap_summary.csv"
+FQE_CONVERGENCE_PATH = RESULTS_DIR / "fqe_convergence.csv"
 
 SEED = 42
 GAMMA = 0.95
 FQI_ITERATIONS = 5
+FQE_ITERATIONS = 10
+FQE_N_REPEATS = 5
 MIN_PROPENSITY = 0.05
 Q_GAP_THRESHOLD = 0.50
 BOOTSTRAP_REPS = 500
@@ -146,6 +152,14 @@ CAUSAL_BACKDOOR_COLUMNS = [
 
 NON_CAUSAL_EXTRA_COLUMNS = ["compatibility_violation", "distance_km", "risk_score"]
 
+MINIMAL_STATE_COLUMNS = [
+    "hour",
+    "demand_size",
+    "time_window_tightness",
+    "traffic_index",
+    "dispatch_delay_min",
+]
+
 REWARD_COLUMNS = {
     "primary": "reward_primary",
     "service_heavy": "reward_service_heavy",
@@ -177,6 +191,7 @@ ABLATION_STATE_REGISTRY = {
     "causal_fqi": CAUSAL_BACKDOOR_COLUMNS,
     "causal_no_history_fqi": [col for col in CAUSAL_BACKDOOR_COLUMNS if col not in HISTORY_FEATURE_COLUMNS],
     "causal_no_vehicle_id_fqi": [col for col in CAUSAL_BACKDOOR_COLUMNS if col != "vehicle_id"],
+    "minimal_fqi": MINIMAL_STATE_COLUMNS,
 }
 
 LEARNED_POLICY_REGISTRY = {

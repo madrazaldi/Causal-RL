@@ -10,6 +10,7 @@ from causal_rl.evaluate import (
     BOOTSTRAP_METRICS,
     bootstrap_confidence_intervals,
     build_support_sweep_df,
+    cluster_bootstrap_confidence_intervals,
     get_policy_outputs,
     prepare_policy_cache,
 )
@@ -125,6 +126,7 @@ def make_models() -> dict:
         "causal_fqi": DummyPolicy("causal_fqi"),
         "causal_no_history_fqi": DummyPolicy("causal_no_history_fqi"),
         "causal_no_vehicle_id_fqi": DummyPolicy("causal_no_vehicle_id_fqi"),
+        "minimal_fqi": DummyPolicy("minimal_fqi"),
     }
 
 
@@ -140,6 +142,10 @@ def make_metadata() -> dict:
                 "removed_columns": ["vehicle_id"],
                 "note": "Drops vehicle identity.",
             },
+            "minimal_fqi": {
+                "removed_columns": ["many_columns"],
+                "note": "Minimal 5-feature baseline.",
+            },
         },
     }
 
@@ -147,7 +153,7 @@ def make_metadata() -> dict:
 def test_get_policy_outputs_includes_ablation_variants() -> None:
     outputs = get_policy_outputs(make_eval_frame(), make_metadata(), make_models(), run_ablations=True)
 
-    for policy_name in ["causal_fqi", "non_causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi"]:
+    for policy_name in ["causal_fqi", "non_causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi", "minimal_fqi"]:
         assert policy_name in outputs
         assert "policy_action" in outputs[policy_name].columns
 
@@ -183,17 +189,45 @@ def test_bootstrap_confidence_intervals_are_deterministic_and_ordered() -> None:
 
 
 def test_support_sweep_outputs_all_threshold_pairs() -> None:
-    sweep_df = build_support_sweep_df(make_eval_frame(), make_metadata(), make_models(), run_ablations=True)
-    expected_policies = {"non_causal_fqi", "causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi"}
+    val_df = make_eval_frame()
+    test_df = make_eval_frame()
+    sweep_df, best_thresholds = build_support_sweep_df(
+        val_df, test_df, make_metadata(), make_models(), run_ablations=True
+    )
+    expected_policies = {"non_causal_fqi", "causal_fqi", "causal_no_history_fqi", "causal_no_vehicle_id_fqi", "minimal_fqi"}
 
     assert set(sweep_df["policy"]) == expected_policies
     assert len(sweep_df) == len(expected_policies) * len(SUPPORT_SWEEP_PROPENSITIES) * len(SUPPORT_SWEEP_Q_GAPS)
     assert sweep_df.groupby(["policy", "min_propensity", "q_gap_threshold"]).size().eq(1).all()
     for column in [
-        "policy_value_dr",
-        "override_rate",
-        "fallback_rate",
-        "low_support_rate",
+        "val_policy_value_dr",
+        "test_policy_value_dr",
+        "val_override_rate",
         "selected_for_main_paper",
     ]:
         assert column in sweep_df.columns
+    assert "min_propensity" in best_thresholds
+    assert "q_gap_threshold" in best_thresholds
+
+
+def test_cluster_bootstrap_produces_valid_output() -> None:
+    df = make_eval_frame()
+    df["trajectory_id"] = [0, 0, 0, 1, 1, 1]
+    metadata = make_metadata()
+    models = make_models()
+    outputs = get_policy_outputs(df, metadata, models, run_ablations=False)
+    cache = prepare_policy_cache(df, metadata, models, outputs["causal_fqi"])
+    trajectory_ids = df["trajectory_id"].to_numpy()
+    rows = cluster_bootstrap_confidence_intervals(
+        cache,
+        df["reward_primary"].to_numpy(dtype=float),
+        "primary",
+        "causal_fqi",
+        bootstrap_reps=20,
+        trajectory_ids=trajectory_ids,
+        scope="overall",
+    )
+    assert len(rows) == len(BOOTSTRAP_METRICS)
+    for row in rows:
+        assert row["ci_low"] <= row["ci_high"]
+        assert row.get("bootstrap_method") == "cluster"

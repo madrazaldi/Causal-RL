@@ -1,6 +1,6 @@
 # Working Title
 
-**Causal Reinforcement Learning for Urban Logistics: A Confounder-Aware Offline Case Study of Eco-Mode Control**
+**Confounder-Aware Offline RL for Eco-Mode Selection in Urban Last-Mile Logistics**
 
 # Positioning
 
@@ -35,8 +35,9 @@ Describe the method as a **confounder-aware offline policy-learning pipeline** f
 
 Report only the findings that are actually supported:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
-- `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
+- `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable; a minimal 5-feature ablation reaches only `-4.810`, confirming the full causal state adds measurable value,
+- support constraint thresholds are selected on a held-out validation partition (τ_μ = 0.05, τ_Q = 0.50) and then fixed for all test-set evaluation,
 - subgroup analysis shows **segment-dependent trade-offs** and supports conservative deployment rather than universal automation.
 
 # 1. Introduction
@@ -216,10 +217,11 @@ Baselines:
 5. `non_causal_fqi`
 6. `causal_fqi`
 
-Keep the two causal ablations as appendix diagnostics:
+Include the ablations as diagnostics:
 
 - `causal_no_history_fqi`
 - `causal_no_vehicle_id_fqi`
+- `minimal_fqi` (5-feature minimal state — establishes the floor for causal state benefit)
 
 Evaluate with:
 
@@ -268,13 +270,15 @@ State:
 - held-out temporal test set,
 - doubly robust estimator for the main table,
 - self-normalized IPS for consistency,
-- FQE in the appendix,
-- bootstrap confidence intervals,
+- FQE in the appendix (note: FQE values are on a different scale than DR/IPS because FQE estimates discounted trajectory-accumulated Q-values, while DR/IPS report per-step averages; this is expected and does not indicate an error),
+- bootstrap confidence intervals (500 replicates),
+- **support constraint thresholds τ_μ and τ_Q are selected on the validation partition** using a conservative score that penalizes override rate; the selected pair (τ_μ = 0.05, τ_Q = 0.50) is then held fixed for all test evaluation — this prevents implicit test-set tuning,
 - robustness slices:
   - `high_traffic`
   - `rain_or_event`
   - `tight_window`
   - `late_day`
+- **cluster bootstrap** (resampling full vehicle-day trajectories) yields CIs 2.9% wider on average than row-level bootstrap, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty.
 
 Add the fairness sentence:
 
@@ -286,9 +290,12 @@ All policies are evaluated on the same historical partitions and under the same 
 
 Make the headline fully honest:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) but trails the broader non-causal comparator,
-- `heuristic_risk_rule` is also competitive at `-4.638`, showing that simpler policies remain strong baselines.
+- `heuristic_risk_rule` is also competitive at `-4.638`, showing that simpler policies remain strong baselines,
+- the confidence intervals for the top policies overlap substantially, indicating that the differences are not decisive at standard significance levels.
+
+Note: support thresholds τ_μ = 0.05, τ_Q = 0.50 were selected on the validation set using a conservative score (DR value − 0.5 × override rate − 0.25 × low-support rate) and then held fixed for all reported test-set results.
 
 Interpretation:
 
@@ -296,11 +303,12 @@ The case study supports confounder-aware offline RL as a viable approach, but no
 
 ## 5.2 What the causal framing contributes
 
-Make three points:
+Make four points:
 
 1. it enforces an honest pre-decision state design,
-2. it reduces the temptation to rely on opaque proxy variables,
-3. it supports conservative policy improvement suitable for operational decision support.
+2. it reduces the temptation to rely on opaque proxy variables (`risk_score`, `compatibility_violation`, `distance_km` are excluded because they may embed post-decision or latent information),
+3. it supports conservative policy improvement suitable for operational decision support,
+4. **empirical feature importance confirms operationally interpretable drivers**: the causal FQI Q-function is dominated by `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) — all features a logistics manager would immediately recognize as relevant to eco-mode timing.
 
 Do not claim that the causal model wins overall. Instead say:
 
@@ -308,15 +316,16 @@ The value of the causal framing in this paper is **credibility, interpretability
 
 ## 5.3 Ablations and robustness
 
-Use the ablation results to make a modest point:
+Use the ablation results to make a clear, graded point:
 
-- `causal_no_vehicle_id_fqi` reaches `-4.670`,
-- `causal_no_history_fqi` reaches `-4.687`,
+- `minimal_fqi` (5-feature baseline: hour, demand_size, time_window_tightness, traffic_index, dispatch_delay_min) reaches only `-4.810`, a gap of **+0.116** below `causal_fqi`,
+- `causal_no_vehicle_id_fqi` reaches `-4.670` (gap +0.024),
+- `causal_no_history_fqi` reaches `-4.687` (gap +0.007),
 - `causal_fqi` reaches `-4.694`.
 
 Interpretation:
 
-The causal-state family is relatively stable to removing history or vehicle identity, but the differences are small and should be read as sensitivity checks rather than proof of a unique causal mechanism.
+The minimal ablation shows that the full 34-feature causal backdoor state provides measurable value (+0.116 DR) over the simplest operationally available features. Removing vehicle identity or history within the causal state has only minor effects, suggesting the causal state is robust to feature subsets while still outperforming a severely restricted baseline.
 
 For robustness, describe the segment pattern truthfully:
 
@@ -324,6 +333,8 @@ For robustness, describe the segment pattern truthfully:
 - the causal policy still improves over logged behavior in `high_traffic`, `rain_or_event`, and `tight_window`,
 - in `late_day`, `causal_fqi` falls slightly below logged behavior,
 - heuristic or static policies sometimes outperform the causal policy in stressed segments.
+
+**Late-day failure diagnosis:** The late_day underperformance is associated with a moderate distribution shift: traffic_index in late-day test hours is 0.014 higher than in training (0.870 vs 0.856), and dispatch_delay_min is 0.18 minutes longer. Under these slightly more congested conditions, the causal policy's support constraints cause more fallback-to-logged actions, limiting any improvement over the behavior policy. This finding supports adding time-of-day interaction features or segment-specific thresholds in future work.
 
 Use this exact takeaway:
 
@@ -334,6 +345,16 @@ The benchmark reveals **segment-dependent trade-offs and the need for conservati
 End with a managerial paragraph:
 
 The project should be presented as a tool for recommending when eco mode is more defensible and when operators should fall back to logged behavior or simpler rules. That makes the method a credible **decision-support layer for eco-mode selection**, not a justification for autonomous control.
+
+## 5.5 Interpretability and Deployment Safety
+
+Add a focused paragraph (can be a subsection within 5.2 or a standalone section depending on page budget):
+
+Permutation importance analysis of the causal FQI Q-function identifies `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) as the primary decision drivers. These features are immediately interpretable to logistics operations managers: eco mode becomes less attractive when little trajectory time remains, when the time window is tight, or when traffic is congested.
+
+Contrast with the non-causal state: the non-causal FQI uses `risk_score` (a compound proxy), `compatibility_violation` (a constraint flag), and `distance_km` (potentially post-decision) as additional features. While this broader state achieves stronger overall DR value, its Q-function drivers are harder to audit and explain to operators. The causal state trades a small performance margin (the gap is within overlapping confidence intervals) for a more operationally auditable decision rule.
+
+The common support analysis confirms that the behavior policy covers virtually all test-set states: only 0.028% of test rows have propensity below τ_μ = 0.05, and the minimum propensity is 0.023. This means the override mechanism operates in a well-supported region and the DR correction term is not distorted by extreme importance weights.
 
 # 6. Conclusion
 
@@ -347,8 +368,9 @@ Conclude in three sentences:
 
 Keep these explicit:
 
-- synthetic data rather than field interventions,
-- binary action space only,
-- no live deployment,
-- no claim of full causal identification,
-- future work should test richer action spaces, partial observability, and real operational logs.
+- synthetic data rather than field interventions; the sim-to-real gap is unquantified,
+- binary action space only — does not address routing, vehicle assignment, or speed selection,
+- no live deployment; causal identification assumptions (overlap, SUTVA) are not empirically verified,
+- no claim of full causal identification — the backdoor adjustment is a domain-informed heuristic; two unobserved confounders (driver skill, maintenance latency) are not blocked,
+- row-level bootstrap CIs are mildly optimistic; cluster bootstrap (resampling trajectories) yields 2.9% wider intervals,
+- future work should test richer action spaces, partial observability, time-of-day segment-specific policies, and real operational logs.

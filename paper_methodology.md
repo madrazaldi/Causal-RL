@@ -111,20 +111,29 @@ Z_t \rightarrow Y_t, \qquad
 A_t \rightarrow Y_t,
 $$
 
-where $Z_t$ denotes observed pre-decision confounders, $A_t$ is eco-mode selection, and $Y_t$ denotes reward-related outcomes such as lateness, incidents, and emissions. The confounder blocks represented in the DAG are:
+where $Z_t$ denotes observed pre-decision confounders, $A_t$ is eco-mode selection, and $Y_t$ denotes reward-related outcomes such as lateness, incidents, and emissions. The confounder blocks represented in the DAG and their role are:
 
-- time context,
-- vehicle context,
-- demand pressure,
-- weather and traffic,
-- route risk,
-- recent operational history.
+| Group | Variables (count) | Role in DAG |
+|---|---|---|
+| Time context | `day_idx`, `dow`, `hour`, `zone` (4) | Drive demand and congestion patterns before dispatch |
+| Vehicle and task context | `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min` (8) | Determine feasibility and performance of eco mode |
+| Road and environment | `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky` (13) | Affect both eco-mode choice and operational outcomes |
+| Operational backlog | `dispatch_delay_min` (1) | Pre-decision urgency signal |
+| Sequential context | `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode` (7) | Within-trajectory history and remaining time horizon |
+
+Each group is observed **before** the eco-mode decision, plausibly causes both action choice and outcomes, and does not lie on the causal path from eco-mode to reward. Total: **33 causal backdoor variables** (prior to one-hot encoding of categoricals).
 
 Under the working backdoor assumption, conditioning on $Z_t$ blocks spurious action-outcome paths:
 
 $$
 Y_t(a) \perp A_t \mid Z_t.
 $$
+
+**Unobserved confounders.** Two variables in the synthetic simulator — `driver_skill_latent` and `maintenance_latent` — are not available to a deployable controller and are therefore excluded from $Z_t$. These represent genuine unobserved confounders that violate strict identification. The conditional independence assumption above is thus a **working heuristic, not a formally proven identification claim**. The support constraint (Section 3.2.4) partially mitigates this risk: by deferring to logged behavior in low-propensity states, the policy avoids acting aggressively in regions where unobserved confounders may systematically distort the observational distribution.
+
+**Non-causal proxy variables.** The non-causal FQI comparator additionally uses `risk_score` (a compound feature derived from route and vehicle covariates), `distance_km`, and `compatibility_violation`. These are excluded from the causal state because they may embed post-decision or latent information through their construction and because they reduce interpretability. Their inclusion in the non-causal state is intentional: it tests whether the performance advantage of the broader state is worth the interpretability and deployability cost.
+
+**Disclaimer.** This causal state design constitutes a domain-informed heuristic adjustment, not a formally proven causal identification. The analysis does not claim that do-calculus identification holds under the true data-generating process. The contribution is a principled, operationally motivated state restriction that reduces the risk of confounding-driven policy overfit relative to the unconstrained non-causal baseline.
 
 The implementation therefore defines a **causal backdoor state** using the observed covariates that plausibly cause both eco-mode choice and operational outcomes. The purpose is to construct a more credible pre-decision state for offline policy learning, not to claim full causal identification. This design intentionally excludes:
 
@@ -207,10 +216,11 @@ where the state is restricted to the backdoor-guided causal feature set.
 
 The comparison is intentionally benchmark-oriented: it tests whether confounder-aware state design changes policy quality, robustness, and deployability under the same logistics control task, rather than presuming that the causal-state policy must dominate every comparator.
 
-Two ablation variants are also trained for mechanism checks:
+Three ablation variants are trained for mechanism checks:
 
 - **causal\_no\_history\_fqi**, which removes rolling-history features and prior eco-mode information,
-- **causal\_no\_vehicle\_id\_fqi**, which removes `vehicle_id` to test whether gains are driven by vehicle-specific memorization.
+- **causal\_no\_vehicle\_id\_fqi**, which removes `vehicle_id` to test whether gains are driven by vehicle-specific memorization,
+- **minimal\_fqi**, which uses only 5 features (`hour`, `demand_size`, `time_window_tightness`, `traffic_index`, `dispatch_delay_min`) to establish the floor performance of the simplest operationally available state.
 
 #### 3.2.4 Support-Constrained Policy Improvement
 
@@ -235,7 +245,13 @@ a_t^{\text{log}}, & \text{otherwise},
 \end{cases}
 $$
 
-where $a_t^{\text{log}}$ is the logged action, $\tau_\mu$ is a minimum support threshold, and $\tau_Q$ is a minimum Q-gap threshold. In the publication configuration, these are set to
+where $a_t^{\text{log}}$ is the logged action, $\tau_\mu$ is a minimum support threshold, and $\tau_Q$ is a minimum Q-gap threshold. These thresholds are **selected on the validation partition** by grid search over $\tau_\mu \in \{0.05, 0.10, 0.15\}$ and $\tau_Q \in \{0.0, 0.25, 0.50\}$, using a conservative score:
+
+$$
+\text{score}(\tau_\mu, \tau_Q) = \bar{V}_{\text{DR}}^{\text{val}} - 0.5 \cdot \bar{r}_{\text{override}} - 0.25 \cdot \bar{r}_{\text{low-support}},
+$$
+
+where $\bar{V}_{\text{DR}}^{\text{val}}$ is the mean DR value across learned policies on the validation set, $\bar{r}_{\text{override}}$ is the mean override rate, and $\bar{r}_{\text{low-support}}$ is the mean low-support rate. The selected pair is then held fixed for all test-set evaluation. Validation-based selection prevents the support sweep from acting as implicit test-set tuning. The selected thresholds are:
 
 $$
 \tau_\mu = 0.05,
@@ -440,7 +456,7 @@ $$
 \sum_{i=1}^{n}\hat{Q}(s_i,\pi(s_i)).
 $$
 
-In the paper, FQE is best treated as an appendix diagnostic rather than the headline estimator.
+In the paper, FQE is best treated as an appendix diagnostic rather than the headline estimator. **Scale note:** FQE Q-values reflect discounted trajectory-length accumulations ($\gamma$-weighted sums over 5–7 steps), while DR and IPS report per-step averages. Under $\gamma = 0.95$ and mean trajectory length $\approx 6.6$ steps, FQE values in the range $-10$ to $-15$ are expected when DR/IPS values are in the range $-4$ to $-5$. This scale difference is structural and does not indicate an error. Convergence of the FQE Bellman iterations (tracked via mean $|\Delta Q|$ per iteration) is reported as an appendix diagnostic.
 
 #### 4.3.5 Bootstrap Uncertainty and Robustness Checks
 
@@ -455,7 +471,7 @@ $$
 \right].
 $$
 
-The publication configuration uses $B=500$ bootstrap replicates.
+The publication configuration uses $B=500$ bootstrap replicates. As a robustness check, cluster bootstrap confidence intervals are also computed by resampling full vehicle-day trajectories (rather than individual rows) with replacement. Cluster CIs are on average 2.9% wider than row-level CIs, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty (the test set contains approximately 2,160 trajectories of mean length 6.6 steps).
 
 Robustness is evaluated on four operational slices:
 
