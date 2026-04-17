@@ -35,7 +35,7 @@ Describe the method as a **confounder-aware offline policy-learning pipeline** f
 
 Report only the findings that are actually supported:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable; a minimal 5-feature ablation reaches only `-4.810`, confirming the full causal state adds measurable value,
 - support constraint thresholds are selected on a held-out validation partition (τ_μ = 0.05, τ_Q = 0.50) and then fixed for all test-set evaluation,
 - subgroup analysis shows **segment-dependent trade-offs** and supports conservative deployment rather than universal automation.
@@ -273,7 +273,7 @@ State:
   - `rain_or_event`
   - `tight_window`
   - `late_day`
-- **cluster bootstrap** (resampling full vehicle-day trajectories) yields CIs 2.9% wider on average than row-level bootstrap, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty.
+- **cluster bootstrap** (resampling full vehicle-day trajectories) yields CIs 4.3% wider on average across the nine evaluated policies for the overall primary-reward doubly robust policy-value metric, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty.
 
 Add the fairness sentence:
 
@@ -285,7 +285,7 @@ All policies are evaluated on the same historical partitions and under the same 
 
 Make the headline fully honest:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) but trails the broader non-causal comparator,
 - `heuristic_risk_rule` is also competitive at `-4.638` and `never_eco` at `-4.692`, showing that simpler policies remain strong baselines,
 - the confidence intervals for the top policies overlap substantially, indicating that the differences are not decisive at standard significance levels.
@@ -355,6 +355,6 @@ Keep these explicit:
 - synthetic data rather than field interventions; the sim-to-real gap is unquantified,
 - binary action space only — does not address routing, vehicle assignment, or speed selection,
 - no live deployment; causal identification assumptions (overlap, SUTVA) are not empirically verified,
-- no claim of full causal identification — the backdoor adjustment is a domain-informed heuristic; two unobserved confounders (driver skill, maintenance latency) are not blocked,
-- row-level bootstrap CIs are mildly optimistic; cluster bootstrap (resampling trajectories) yields 2.9% wider intervals,
+- no claim of full causal identification — the backdoor adjustment is a domain-informed heuristic; three simulator-only latent columns (`maintenance_latent`, `driver_skill_latent`, `driver_risk_propensity_latent`) are not blocked, with driver skill and maintenance remaining the clearest confounders in the narrative,
+- row-level bootstrap CIs are mildly optimistic; cluster bootstrap (resampling trajectories) yields 4.3% wider intervals on average across the nine evaluated policies for the overall primary-reward doubly robust policy-value metric,
 - future work should test richer action spaces, partial observability, time-of-day segment-specific policies, and real operational logs.

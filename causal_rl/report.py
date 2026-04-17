@@ -377,8 +377,16 @@ def plot_causal_graph(metadata: dict) -> None:
     ax.text(u_cx, 0.45, "U  —  Unobserved (excluded from state)",
             ha="center", va="center", fontsize=8.5, color=MUTED,
             fontstyle="italic", family="DejaVu Sans")
-    ax.text(u_cx, 0.22, "driver_skill_latent,  maintenance_latent",
-            ha="center", va="center", fontsize=7.8, color=MUTED, family="DejaVu Sans")
+    ax.text(
+        u_cx,
+        0.22,
+        "driver_skill_latent, maintenance_latent\n driver_risk_propensity_latent",
+        ha="center",
+        va="center",
+        fontsize=7.4,
+        color=MUTED,
+        family="DejaVu Sans",
+    )
 
     # ── Non-causal proxy exclusion note ────────────────────────────────────
     excl_patch = FancyBboxPatch(

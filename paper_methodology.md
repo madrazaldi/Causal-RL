@@ -131,7 +131,7 @@ $$
 Y_t(a) \perp A_t \mid Z_t.
 $$
 
-**Unobserved confounders.** Two variables in the synthetic simulator — `driver_skill_latent` and `maintenance_latent` — are not available to a deployable controller and are therefore excluded from $Z_t$. These represent genuine unobserved confounders that violate strict identification. The conditional independence assumption above is thus a **working heuristic, not a formally proven identification claim**. The support constraint (Section 3.2.4) partially mitigates this risk: by deferring to logged behavior in low-propensity states, the policy avoids acting aggressively in regions where unobserved confounders may systematically distort the observational distribution.
+**Unobserved confounders.** Three simulator-only latent variables — `driver_skill_latent`, `maintenance_latent`, and `driver_risk_propensity_latent` — are not available to a deployable controller and are therefore excluded from $Z_t$. The first two are the clearest unobserved confounders for driver capability and vehicle condition in the narrative, while the third captures latent driving-risk propensity and is likewise unavailable at deployment. These latent factors violate strict identification. The conditional independence assumption above is thus a **working heuristic, not a formally proven identification claim**. The support constraint (Section 3.2.4) partially mitigates this risk: by deferring to logged behavior in low-propensity states, the policy avoids acting aggressively in regions where unobserved confounders may systematically distort the observational distribution.
 
 **Non-causal proxy variables.** The non-causal FQI comparator additionally uses `risk_score` (a predicted safety risk proxy), `distance_km` (planned segment distance), and `compatibility_violation` (a known vehicle-cargo assignment flag). These variables are treated as pre-decision but more weakly interpretable operational proxies, so they are excluded from the causal state and retained only in the broader non-causal comparator. Their inclusion is intentional: it tests whether any performance gain from a broader proxy-rich state is worth the interpretability and deployability cost.
 
@@ -473,7 +473,7 @@ $$
 \right].
 $$
 
-The publication configuration uses $B=500$ bootstrap replicates. As a robustness check, cluster bootstrap confidence intervals are also computed by resampling full vehicle-day trajectories (rather than individual rows) with replacement. Cluster CIs are on average 2.9% wider than row-level CIs, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty (the test set contains approximately 2,160 trajectories of mean length 6.6 steps).
+The publication configuration uses $B=500$ bootstrap replicates. As a robustness check, cluster bootstrap confidence intervals are also computed by resampling full vehicle-day trajectories (rather than individual rows) with replacement. For the overall primary-reward doubly robust policy-value metric, cluster-bootstrap CIs are on average 4.3% wider across the nine evaluated policies than row-level bootstrap CIs, confirming that row-level intervals are mildly optimistic approximations of trajectory-level uncertainty (the test set contains approximately 2,158 trajectories of mean length 6.6 steps).
 
 Robustness is evaluated on four operational slices:
 
@@ -483,4 +483,3 @@ Robustness is evaluated on four operational slices:
 - **late day**: `hour \ge 17`.
 
 For each segment, we report the same policy-value and operational metrics used in the overall evaluation, together with the delta relative to logged behavior.
-
