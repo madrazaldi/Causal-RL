@@ -318,7 +318,7 @@ def plot_causal_graph(metadata: dict) -> None:
     ax.text(
         2.55,
         6.35,
-        "Observed Pre-Decision Confounders",
+        "Observed Pre-Decision Context",
         ha="center",
         va="center",
         fontsize=15,
@@ -332,10 +332,11 @@ def plot_causal_graph(metadata: dict) -> None:
         ("vehicle_context", "Vehicle Context", "type, age, efficiency"),
         ("demand_pressure", "Demand Pressure", "load and time window"),
         ("weather_traffic", "Weather & Traffic", "rain, visibility, congestion"),
-        ("route_risk", "Route Risk", "grade, incidents, road risk"),
+        ("route_risk", "Route Risk", "grade, intersections, road risk"),
+        ("prior_decisions", "Prior Decisions", "route choice, dispatch delay"),
         ("recent_operational_history", "Recent History", "prior reward and eco state"),
     ]
-    y_positions = [5.55, 4.75, 3.95, 3.15, 2.35, 1.55]
+    y_positions = [5.55, 4.85, 4.15, 3.45, 2.75, 2.05, 1.35]
     conf_boxes: dict[str, dict[str, float]] = {}
     for (_, label, subtitle), y in zip(confounders, y_positions):
         key = next(key for key, item_label, _ in confounders if item_label == label)
@@ -380,19 +381,19 @@ def plot_causal_graph(metadata: dict) -> None:
             _add_arrow(
                 ax,
                 (conf_box["right"], conf_box["cy"]),
-                (eco_box["left"], eco_box["cy"] + (index - 2.5) * 0.045),
+                (eco_box["left"], eco_box["cy"] + (index - 3.0) * 0.045),
                 color=ACTION_EDGE,
                 lw=1.65,
-                rad=(index - 2.5) * 0.035,
+                rad=(index - 3.0) * 0.035,
             )
         if (node_key, "reward") in edge_set:
             _add_arrow(
                 ax,
                 (conf_box["right"], conf_box["cy"] - 0.015),
-                (reward_box["left"], reward_box["cy"] + (index - 2.5) * 0.04),
+                (reward_box["left"], reward_box["cy"] + (index - 3.0) * 0.04),
                 color=REWARD_EDGE,
                 lw=1.55,
-                rad=(index - 2.5) * 0.06,
+                rad=(index - 3.0) * 0.06,
                 alpha=0.85,
             )
 

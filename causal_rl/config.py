@@ -48,6 +48,7 @@ SORT_COLUMNS = [DATE_COLUMN, "vehicle_id", "hour", "row_id"]
 POST_ACTION_COLUMNS = [
     "avg_speed_kmph",
     "travel_time_min",
+    "harsh_events",
     "fuel_liters",
     "co2_kg",
     "near_miss",

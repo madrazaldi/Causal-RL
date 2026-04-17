@@ -77,7 +77,7 @@ def test_build_decision_log_excludes_post_action_state_leakage() -> None:
     bundle = build_decision_log(make_raw_frame())
     state_columns = bundle.metadata["state_columns"]
 
-    for leaked in ["co2_kg", "crash", "near_miss", "lateness_min", "on_time"]:
+    for leaked in ["co2_kg", "crash", "near_miss", "lateness_min", "on_time", "harsh_events"]:
         assert leaked not in state_columns
         assert f"state_{leaked}" not in bundle.df.columns
 

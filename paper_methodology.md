@@ -15,14 +15,14 @@ $$
 
 where each trajectory corresponds to one `date`-`vehicle_id` pair, $s_{i,t}$ is the pre-decision state at step $t$, $a_{i,t}\in\{0,1\}$ is the logged action, $r_{i,t}$ is the observed reward, $s_{i,t+1}$ is the next state, and $d_{i,t}\in\{0,1\}$ indicates trajectory termination.
 
-The state is restricted to **pre-decision deployable covariates**. In the implementation, the state contains six groups of information:
+The state is restricted to **pre-decision deployable covariates**. In the implementation, the state contains seven groups of information:
 
 1. **Time and location context**: `day_idx`, `dow`, `hour`, `zone`.
 2. **Vehicle and task context**: `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min`.
-3. **Road and environmental context**: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky`.
-4. **Operational backlog context**: `dispatch_delay_min`.
+3. **Road and environmental context**: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`.
+4. **Prior decisions**: `route_risky`, `dispatch_delay_min` — deliberate choices (route selection and dispatch batching) made before the eco-mode decision, which affect both action choice and outcomes.
 5. **Sequential context**: `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode`.
-6. **Non-causal proxy extensions** for the broader comparator: `compatibility_violation`, `distance_km`, and `risk_score`.
+6. **Non-causal proxy extensions** for the broader comparator: `compatibility_violation`, `distance_km` (planned route distance, correlated with route choice), and `risk_score` (predicted safety risk embedding latent driver characteristics).
 
 The action space is binary:
 
@@ -117,8 +117,8 @@ where $Z_t$ denotes observed pre-decision confounders, $A_t$ is eco-mode selecti
 |---|---|---|
 | Time context | `day_idx`, `dow`, `hour`, `zone` (4) | Drive demand and congestion patterns before dispatch |
 | Vehicle and task context | `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min` (8) | Determine feasibility and performance of eco mode |
-| Road and environment | `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky` (13) | Affect both eco-mode choice and operational outcomes |
-| Operational backlog | `dispatch_delay_min` (1) | Pre-decision urgency signal |
+| Road and environment | `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state` (12) | Affect both eco-mode choice and operational outcomes |
+| Prior decisions | `route_risky`, `dispatch_delay_min` (2) | Deliberate choices made before eco-mode (route selection and dispatch batching); affect both action choice and outcomes |
 | Sequential context | `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode` (7) | Within-trajectory history and remaining time horizon |
 
 Each group is observed **before** the eco-mode decision, plausibly causes both action choice and outcomes, and does not lie on the causal path from eco-mode to reward. Total: **33 causal backdoor variables** (prior to one-hot encoding of categoricals).
@@ -202,7 +202,7 @@ $$
 \arg\max_a \hat{Q}_{\text{NC}}(s,a),
 $$
 
-where the state includes the broader deployable feature set, including `compatibility_violation`, `distance_km`, and `risk_score`.
+where the state includes the broader deployable feature set, additionally including `compatibility_violation`, `distance_km`, and `risk_score`.
 
 2. **Causal FQI**
 

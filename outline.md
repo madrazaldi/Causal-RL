@@ -149,8 +149,8 @@ Define the sequential problem over trajectories formed by `date`-`vehicle_id`.
 - **State**: pre-decision operational context available to a deployable controller
   - time and location: `day_idx`, `dow`, `hour`, `zone`
   - vehicle and task: `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min`
-  - road and environment: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`, `route_risky`
-  - operational backlog: `dispatch_delay_min`
+  - road and environment: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`
+  - prior decisions: `route_risky`, `dispatch_delay_min` (deliberate choices made before eco-mode)
   - sequential context: `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode`
 
 - **Action**: `eco_mode in {0,1}`
@@ -306,7 +306,7 @@ The case study supports confounder-aware offline RL as a viable approach, but no
 Make four points:
 
 1. it enforces an honest pre-decision state design,
-2. it reduces the temptation to rely on opaque proxy variables (`risk_score`, `compatibility_violation`, `distance_km` are excluded because they may embed post-decision or latent information),
+2. it reduces the temptation to rely on opaque proxy variables (`distance_km` is correlated with the route_risky treatment; `risk_score` embeds latent driver risk propensity; `compatibility_violation` reflects vehicle-cargo matching logic — all three are excluded from the causal state because their construction conflates pre-decision context with latent or treatment-adjacent information),
 3. it supports conservative policy improvement suitable for operational decision support,
 4. **empirical feature importance confirms operationally interpretable drivers**: the causal FQI Q-function is dominated by `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) — all features a logistics manager would immediately recognize as relevant to eco-mode timing.
 
@@ -352,7 +352,7 @@ Add a focused paragraph (can be a subsection within 5.2 or a standalone section 
 
 Permutation importance analysis of the causal FQI Q-function identifies `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) as the primary decision drivers. These features are immediately interpretable to logistics operations managers: eco mode becomes less attractive when little trajectory time remains, when the time window is tight, or when traffic is congested.
 
-Contrast with the non-causal state: the non-causal FQI uses `risk_score` (a compound proxy), `compatibility_violation` (a constraint flag), and `distance_km` (potentially post-decision) as additional features. While this broader state achieves stronger overall DR value, its Q-function drivers are harder to audit and explain to operators. The causal state trades a small performance margin (the gap is within overlapping confidence intervals) for a more operationally auditable decision rule.
+Contrast with the non-causal state: the non-causal FQI uses `risk_score` (predicted risk embedding latent driver characteristics), `compatibility_violation` (a vehicle-cargo constraint flag), and `distance_km` (planned route distance correlated with route choice) as additional features. While this broader state achieves stronger overall DR value, its Q-function drivers are harder to audit and explain to operators. The causal state trades a small performance margin (the gap is within overlapping confidence intervals) for a more operationally auditable decision rule.
 
 The common support analysis confirms that the behavior policy covers virtually all test-set states: only 0.028% of test rows have propensity below τ_μ = 0.05, and the minimum propensity is 0.023. This means the override mechanism operates in a well-supported region and the DR correction term is not distorted by extreme importance weights.
 
