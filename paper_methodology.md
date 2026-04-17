@@ -484,15 +484,3 @@ Robustness is evaluated on four operational slices:
 
 For each segment, we report the same policy-value and operational metrics used in the overall evaluation, together with the delta relative to logged behavior.
 
-## Summary of the Proposed Method
-
-The full methodology can be summarized as:
-
-1. Convert urban logistics logs into sequential trajectories over vehicle-day decisions.
-2. Construct a deployable pre-decision state with causal backdoor guidance.
-3. Estimate the historical behavior policy to quantify logged action support.
-4. Train offline FQI policies on both broad and confounder-aware state representations.
-5. Apply support-constrained policy improvement to avoid weakly supported overrides.
-6. Evaluate learned policies on a held-out temporal test set using SNIPS, doubly robust estimation, FQE, bootstrap confidence intervals, and subgroup robustness analysis.
-
-This framing positions eco-mode control as an interpretable and operationally conservative offline decision-learning problem rather than a purely predictive task. In the full paper, the empirical findings should therefore be interpreted as evidence about a **synthetic urban logistics case study** and about the value of confounding-aware state design and deployment guardrails, not as proof that causal FQI is the strongest overall policy.

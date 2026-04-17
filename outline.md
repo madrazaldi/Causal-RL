@@ -35,7 +35,7 @@ Describe the method as a **confounder-aware offline policy-learning pipeline** f
 
 Report only the findings that are actually supported:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable; a minimal 5-feature ablation reaches only `-4.810`, confirming the full causal state adds measurable value,
 - support constraint thresholds are selected on a held-out validation partition (τ_μ = 0.05, τ_Q = 0.50) and then fixed for all test-set evaluation,
 - subgroup analysis shows **segment-dependent trade-offs** and supports conservative deployment rather than universal automation.
@@ -99,19 +99,7 @@ State four contributions in this order:
 
 ## 2.1 Logistics analytics and operational decision support
 
-Cover four clusters:
-
-- ETA and lateness prediction,
-- routing and service planning,
-- green logistics and emissions analytics,
-- heuristic control and dispatch policies.
-
-For each, emphasize the same gap:
-
-- predicts risk but does not recommend actions,
-- optimizes plans but not adaptive logged controls,
-- often remains correlational,
-- offers limited counterfactual support.
+Cover four clusters: ETA and lateness prediction, routing and service planning, green logistics and emissions analytics, and heuristic control and dispatch policies. For each, the shared gap is the same: these approaches support prediction or planning but do not directly learn **action policies from logged operational decisions**.
 
 ## 2.2 Offline RL and causal decision learning
 
@@ -297,9 +285,9 @@ All policies are evaluated on the same historical partitions and under the same 
 
 Make the headline fully honest:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) but trails the broader non-causal comparator,
-- `heuristic_risk_rule` is also competitive at `-4.638`, showing that simpler policies remain strong baselines,
+- `heuristic_risk_rule` is also competitive at `-4.638` and `never_eco` at `-4.692`, showing that simpler policies remain strong baselines,
 - the confidence intervals for the top policies overlap substantially, indicating that the differences are not decisive at standard significance levels.
 
 Note: support thresholds τ_μ = 0.05, τ_Q = 0.50 were selected on the validation set using a conservative score (DR value − 0.5 × override rate − 0.25 × low-support rate) and then held fixed for all reported test-set results.
@@ -350,19 +338,7 @@ The benchmark reveals **segment-dependent trade-offs and the need for conservati
 
 ## 5.4 Practical interpretation
 
-End with a managerial paragraph:
-
-The project should be presented as a tool for recommending when eco mode is more defensible and when operators should fall back to logged behavior or simpler rules. That makes the method a credible **decision-support layer for eco-mode selection**, not a justification for autonomous control.
-
-## 5.5 Interpretability and Deployment Safety
-
-Add a focused paragraph (can be a subsection within 5.2 or a standalone section depending on page budget):
-
-Permutation importance analysis of the causal FQI Q-function identifies `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) as the primary decision drivers. These features are immediately interpretable to logistics operations managers: eco mode becomes less attractive when little trajectory time remains, when the time window is tight, or when traffic is congested.
-
-Contrast with the non-causal state: the non-causal FQI uses `risk_score` (predicted risk embedding latent driver characteristics), `compatibility_violation` (a vehicle-cargo constraint flag), and `distance_km` (planned route distance correlated with route choice) as additional features. While this broader state achieves stronger overall DR value, its Q-function drivers are harder to audit and explain to operators. The causal state trades a small performance margin (the gap is within overlapping confidence intervals) for a more operationally auditable decision rule.
-
-The common support analysis confirms that the behavior policy covers virtually all test-set states: only 0.028% of test rows have propensity below τ_μ = 0.05, and the minimum propensity is 0.023. This means the override mechanism operates in a well-supported region and the DR correction term is not distorted by extreme importance weights.
+Close with one managerial sentence: the method is a **decision-support layer for eco-mode selection** that recommends when eco mode is defensible and when operators should defer to logged behavior or simpler rules — not a justification for autonomous control.
 
 # 6. Conclusion
 
