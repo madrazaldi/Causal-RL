@@ -11,6 +11,7 @@ from .config import (
     ACTION_COLUMN,
     ARTIFACTS_DIR,
     CAUSAL_BACKDOOR_COLUMNS,
+    DATA_DICTIONARY_PATH,
     DATE_COLUMN,
     DECISION_LOG_PATH,
     DEPLOYABLE_STATE_COLUMNS,
@@ -22,6 +23,8 @@ from .config import (
     REWARD_COLUMNS,
     REWARD_SPECS,
     SEED,
+    SEMANTIC_REFERENCE,
+    SEQUENCE_ORDERING_REFERENCE,
     SORT_COLUMNS,
     SPLIT_RATIOS,
     TRAJECTORY_KEY_COLUMNS,
@@ -113,6 +116,17 @@ def assign_temporal_splits(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return out, metadata
 
 
+def compute_sequence_diagnostics(df: pd.DataFrame) -> dict:
+    group_sizes = df.groupby([DATE_COLUMN, "vehicle_id", "hour"], sort=False).size()
+    duplicate_groups = group_sizes[group_sizes > 1]
+    return {
+        "date_vehicle_hour_groups": int(len(group_sizes)),
+        "duplicate_date_vehicle_hour_groups": int(len(duplicate_groups)),
+        "duplicate_date_vehicle_hour_group_share": float(len(duplicate_groups) / len(group_sizes)),
+        "max_rows_per_date_vehicle_hour": int(group_sizes.max()),
+    }
+
+
 def create_next_state_columns(df: pd.DataFrame, state_columns: list[str]) -> pd.DataFrame:
     out = df.copy()
     group = out.groupby(TRAJECTORY_KEY_COLUMNS, sort=False)
@@ -135,6 +149,7 @@ def build_decision_log(raw_df: pd.DataFrame) -> DatasetBundle:
         df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
     if "row_id" not in df.columns:
         df["row_id"] = np.arange(len(df))
+    sequence_diagnostics = compute_sequence_diagnostics(df)
     df = compute_reward_columns(df)
     df = add_sequential_features(df)
     df, split_metadata = assign_temporal_splits(df)
@@ -160,6 +175,12 @@ def build_decision_log(raw_df: pd.DataFrame) -> DatasetBundle:
         "deployable_exclusions": POST_ACTION_COLUMNS + LATENT_COLUMNS,
         "post_action_columns": POST_ACTION_COLUMNS,
         "latent_columns": LATENT_COLUMNS,
+        "semantic_reference": SEMANTIC_REFERENCE,
+        "sequence_ordering": {
+            **SEQUENCE_ORDERING_REFERENCE,
+            **sequence_diagnostics,
+        },
+        "dictionary_path": str(DATA_DICTIONARY_PATH),
         "split_metadata": split_metadata,
         "causal_dag": {
             "confounders": [

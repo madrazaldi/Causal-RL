@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW_DATA_PATH = ROOT / "causalog_synthetic_urban_logistics.csv"
+DATA_DICTIONARY_PATH = ROOT / "causalog_full_data_dictionary_v2.json"
 
 ARTIFACTS_DIR = ROOT / "artifacts"
 MODELS_DIR = ROOT / "models"
@@ -44,6 +45,26 @@ ACTION_COLUMN = "eco_mode"
 DATE_COLUMN = "date"
 TRAJECTORY_KEY_COLUMNS = [DATE_COLUMN, "vehicle_id"]
 SORT_COLUMNS = [DATE_COLUMN, "vehicle_id", "hour", "row_id"]
+
+SEMANTIC_REFERENCE = {
+    "source_of_truth": "provider_email_plus_json_dictionary",
+    "unit_of_analysis": "One row is one dispatch decision / trip segment / decision epoch for one vehicle in one zone.",
+    "trajectory_definition": "A daily trajectory is defined by the (date, vehicle_id) pair.",
+    "action_semantics": "eco_mode is an epoch-level controllable operational action and may change across the day.",
+    "hour_semantics": "hour is the decision-time bucket, not a departure or arrival timestamp.",
+    "dispatch_delay_semantics": "dispatch_delay_min is pre-movement waiting or batching time and is not caused by eco_mode.",
+    "distance_semantics": "distance_km is a planned pre-decision segment distance proxy and is only used in the non-causal comparator.",
+    "risk_score_semantics": "risk_score is a predicted pre-decision safety risk proxy and is excluded from the causal state.",
+    "compatibility_semantics": "compatibility_violation is a known pre-dispatch assignment flag and is excluded from the causal state.",
+    "safety_outcome_semantics": "crash and near_miss are realized simulator-generated safety outcomes, not current-step state inputs.",
+    "latent_semantics": "latent simulator columns are non-deployable and excluded from learned policy state.",
+}
+
+SEQUENCE_ORDERING_REFERENCE = {
+    "sort_columns": SORT_COLUMNS,
+    "within_hour_tie_breaker": "row_id derived from original CSV row order",
+    "note": "No finer-grained event timestamp is available in the raw schema, so repeated hourly decision epochs are ordered by source row position.",
+}
 
 POST_ACTION_COLUMNS = [
     "avg_speed_kmph",

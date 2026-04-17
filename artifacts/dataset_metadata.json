@@ -122,6 +122,7 @@
   "deployable_exclusions": [
     "avg_speed_kmph",
     "travel_time_min",
+    "harsh_events",
     "fuel_liters",
     "co2_kg",
     "near_miss",
@@ -135,6 +136,7 @@
   "post_action_columns": [
     "avg_speed_kmph",
     "travel_time_min",
+    "harsh_events",
     "fuel_liters",
     "co2_kg",
     "near_miss",
@@ -147,6 +149,34 @@
     "driver_skill_latent",
     "driver_risk_propensity_latent"
   ],
+  "semantic_reference": {
+    "source_of_truth": "provider_email_plus_json_dictionary",
+    "unit_of_analysis": "One row is one dispatch decision / trip segment / decision epoch for one vehicle in one zone.",
+    "trajectory_definition": "A daily trajectory is defined by the (date, vehicle_id) pair.",
+    "action_semantics": "eco_mode is an epoch-level controllable operational action and may change across the day.",
+    "hour_semantics": "hour is the decision-time bucket, not a departure or arrival timestamp.",
+    "dispatch_delay_semantics": "dispatch_delay_min is pre-movement waiting or batching time and is not caused by eco_mode.",
+    "distance_semantics": "distance_km is a planned pre-decision segment distance proxy and is only used in the non-causal comparator.",
+    "risk_score_semantics": "risk_score is a predicted pre-decision safety risk proxy and is excluded from the causal state.",
+    "compatibility_semantics": "compatibility_violation is a known pre-dispatch assignment flag and is excluded from the causal state.",
+    "safety_outcome_semantics": "crash and near_miss are realized simulator-generated safety outcomes, not current-step state inputs.",
+    "latent_semantics": "latent simulator columns are non-deployable and excluded from learned policy state."
+  },
+  "sequence_ordering": {
+    "sort_columns": [
+      "date",
+      "vehicle_id",
+      "hour",
+      "row_id"
+    ],
+    "within_hour_tie_breaker": "row_id derived from original CSV row order",
+    "note": "No finer-grained event timestamp is available in the raw schema, so repeated hourly decision epochs are ordered by source row position.",
+    "date_vehicle_hour_groups": 78423,
+    "duplicate_date_vehicle_hour_groups": 15198,
+    "duplicate_date_vehicle_hour_group_share": 0.19379518763628018,
+    "max_rows_per_date_vehicle_hour": 6
+  },
+  "dictionary_path": "/Users/anonymoize/Projects/Causal RL/causalog_full_data_dictionary_v2.json",
   "split_metadata": {
     "split_counts": {
       "train": 67179,
@@ -287,6 +317,7 @@
       "demand_pressure",
       "weather_traffic",
       "route_risk",
+      "prior_decisions",
       "recent_operational_history"
     ],
     "edges": [
@@ -311,6 +342,10 @@
         "eco_mode"
       ],
       [
+        "prior_decisions",
+        "eco_mode"
+      ],
+      [
         "recent_operational_history",
         "eco_mode"
       ],
@@ -332,6 +367,10 @@
       ],
       [
         "route_risk",
+        "reward"
+      ],
+      [
+        "prior_decisions",
         "reward"
       ],
       [

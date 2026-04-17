@@ -10,8 +10,8 @@ def make_raw_frame() -> pd.DataFrame:
     base_rows = [
         ("2025-01-01", 0, 2, 9, 1, 10, "common", 2.0, 0.95, -0.1, 0.2, 0.1, "general", 2.5, 0.2, 8.0, 40, 12, -0.5, 0.1, 0, 0.0, 15.0, 10.0, 0, 0, 0.4, "light", 0, 1, 3.0, 0, 5.0, 30.0, 11.0, 0, 1.2, 2.5, -1.0, 0, 0, 0.0, 1),
         ("2025-01-01", 0, 2, 11, 1, 10, "common", 2.0, 0.95, -0.1, 0.2, 0.1, "general", 2.8, 0.3, 10.0, 40, 12, -0.5, 0.1, 0, 0.0, 15.5, 10.0, 0, 0, 0.7, "medium", 0, 0, 4.0, 0, 6.0, 28.0, 13.0, 0, 1.4, 2.8, -0.8, 1, 0, 4.0, 0),
-        ("2025-01-02", 1, 3, 9, 2, 11, "cooling", 3.0, 0.93, 0.0, 0.3, 0.2, "cold", 3.0, 0.5, 12.0, 35, 14, -0.3, 0.2, 1, 5.0, 9.0, 8.0, 1, 0, 1.2, "heavy", 1, 0, 8.0, 1, 8.0, 22.0, 20.0, 1, 1.8, 3.8, -0.2, 0, 0, 6.0, 0),
-        ("2025-01-02", 1, 3, 14, 2, 11, "cooling", 3.0, 0.93, 0.0, 0.3, 0.2, "cold", 3.2, 0.6, 14.0, 35, 14, -0.3, 0.2, 1, 4.0, 10.0, 8.5, 0, 1, 1.0, "heavy", 1, 1, 6.0, 1, 7.0, 24.0, 18.0, 1, 1.6, 3.5, -0.1, 0, 1, 8.0, 0),
+        ("2025-01-02", 1, 3, 9, 2, 11, "cooling", 3.0, 0.93, 0.0, 0.3, 0.2, "cold_chain", 3.0, 0.5, 12.0, 35, 14, -0.3, 0.2, 1, 5.0, 9.0, 8.0, 1, 0, 1.2, "high", 1, 0, 8.0, 1, 8.0, 22.0, 20.0, 1, 1.8, 3.8, -0.2, 0, 0, 6.0, 0),
+        ("2025-01-02", 1, 3, 14, 2, 11, "cooling", 3.0, 0.93, 0.0, 0.3, 0.2, "cold_chain", 3.2, 0.6, 14.0, 35, 14, -0.3, 0.2, 1, 4.0, 10.0, 8.5, 0, 1, 1.0, "high", 1, 1, 6.0, 1, 7.0, 24.0, 18.0, 1, 1.6, 3.5, -0.1, 0, 1, 8.0, 0),
     ]
     columns = [
         "date",
@@ -88,3 +88,11 @@ def test_temporal_split_is_date_based() -> None:
 
     split_by_date = df.groupby(df["date"].dt.strftime("%Y-%m-%d"))["split"].nunique()
     assert (split_by_date == 1).all()
+
+
+def test_sequence_metadata_uses_row_order_tie_break() -> None:
+    bundle = build_decision_log(make_raw_frame())
+    ordering = bundle.metadata["sequence_ordering"]
+
+    assert ordering["sort_columns"] == ["date", "vehicle_id", "hour", "row_id"]
+    assert ordering["within_hour_tie_breaker"] == "row_id derived from original CSV row order"

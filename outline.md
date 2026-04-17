@@ -35,7 +35,7 @@ Describe the method as a **confounder-aware offline policy-learning pipeline** f
 
 Report only the findings that are actually supported:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) and remains operationally interpretable; a minimal 5-feature ablation reaches only `-4.810`, confirming the full causal state adds measurable value,
 - support constraint thresholds are selected on a held-out validation partition (τ_μ = 0.05, τ_Q = 0.50) and then fixed for all test-set evaluation,
 - subgroup analysis shows **segment-dependent trade-offs** and supports conservative deployment rather than universal automation.
@@ -146,6 +146,12 @@ Prior logistics studies largely stop at prediction, planning, or fixed heuristic
 
 Define the sequential problem over trajectories formed by `date`-`vehicle_id`.
 
+Use the provider clarification explicitly:
+
+- one row is one dispatch decision / trip segment / decision epoch,
+- `eco_mode` is an epoch-level controllable decision and can change during the day,
+- `hour` is the decision-time bucket, not departure or arrival time.
+
 - **State**: pre-decision operational context available to a deployable controller
   - time and location: `day_idx`, `dow`, `hour`, `zone`
   - vehicle and task: `vehicle_id`, `vehicle_type`, `vehicle_age_years`, `vehicle_efficiency_index`, `commodity_type`, `demand_size`, `time_window_tightness`, `service_time_min`
@@ -188,7 +194,7 @@ The causal design goal is not to prove full identification, but to construct a m
 
 Train two fitted Q iteration variants:
 
-- **Non-causal FQI** with the broader deployable state including `risk_score`, `distance_km`, and `compatibility_violation`,
+- **Non-causal FQI** with the broader deployable proxy state including `risk_score`, `distance_km`, and `compatibility_violation`,
 - **Causal FQI** with the backdoor-guided state only.
 
 State plainly that this is a benchmark comparison:
@@ -248,7 +254,8 @@ State the concrete values:
 Explain:
 
 - each trajectory is defined by `date`-`vehicle_id`,
-- rows are ordered by `hour` and row index,
+- rows are ordered by `hour` and original row index because the raw schema has no finer-grained timestamp,
+- about 19.4% of `(date, vehicle_id, hour)` groups contain multiple rows, so within-hour order is a documented source-row tie-break assumption,
 - lagged features use only prior events within a trajectory,
 - post-action and latent variables are excluded from the deployable state.
 
@@ -290,7 +297,7 @@ All policies are evaluated on the same historical partitions and under the same 
 
 Make the headline fully honest:
 
-- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.521` with 95% CI `[-4.707, -4.336]`,
+- `non_causal_fqi` is the strongest overall policy by doubly robust value at `-4.457` with 95% CI `[-4.636, -4.280]`,
 - `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) but trails the broader non-causal comparator,
 - `heuristic_risk_rule` is also competitive at `-4.638`, showing that simpler policies remain strong baselines,
 - the confidence intervals for the top policies overlap substantially, indicating that the differences are not decisive at standard significance levels.
@@ -307,6 +314,7 @@ Make four points:
 
 1. it enforces an honest pre-decision state design,
 2. it reduces the temptation to rely on opaque proxy variables (`distance_km` is correlated with the route_risky treatment; `risk_score` embeds latent driver risk propensity; `compatibility_violation` reflects vehicle-cargo matching logic — all three are excluded from the causal state because their construction conflates pre-decision context with latent or treatment-adjacent information),
+   Treat the non-causal comparator as a broader deployable proxy state, not as a causal state.
 3. it supports conservative policy improvement suitable for operational decision support,
 4. **empirical feature importance confirms operationally interpretable drivers**: the causal FQI Q-function is dominated by `remaining_steps` (trajectory position: importance 1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), and `traffic_index` (0.06) — all features a logistics manager would immediately recognize as relevant to eco-mode timing.
 
@@ -325,7 +333,7 @@ Use the ablation results to make a clear, graded point:
 
 Interpretation:
 
-The minimal ablation shows that the full 34-feature causal backdoor state provides measurable value (+0.116 DR) over the simplest operationally available features. Removing vehicle identity or history within the causal state has only minor effects, suggesting the causal state is robust to feature subsets while still outperforming a severely restricted baseline.
+The minimal ablation shows that the full 33-feature causal backdoor state provides measurable value (+0.116 DR) over the simplest operationally available features. Removing vehicle identity or history within the causal state has only minor effects, suggesting the causal state is robust to feature subsets while still outperforming a severely restricted baseline.
 
 For robustness, describe the segment pattern truthfully:
 

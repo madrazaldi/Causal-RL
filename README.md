@@ -47,6 +47,20 @@ Two sensitivity rewards are also evaluated:
 - `service_heavy`
 - `sustainability_heavy`
 
+## Dataset Semantics
+
+The implementation treats the provider email plus the JSON data dictionary as the semantic source of truth.
+
+- one row is one dispatch decision / trip segment / decision epoch,
+- one daily trajectory is defined by `(date, vehicle_id)`,
+- `eco_mode` is an epoch-level controllable action and can change during the day,
+- `hour` is the decision-time bucket, not departure or arrival time,
+- `dispatch_delay_min` is pre-movement waiting or batching time,
+- `distance_km`, `risk_score`, and `compatibility_violation` are treated as pre-decision proxy variables and are used only in the broader non-causal comparator,
+- `crash`, `near_miss`, `lateness_min`, `co2_kg`, `fuel_liters`, `travel_time_min`, `avg_speed_kmph`, `harsh_events`, and latent simulator columns are excluded from current-step deployable state.
+
+The decision log is ordered by `date`, `vehicle_id`, `hour`, and original CSV row order. In the current dataset, about 19.4% of `(date, vehicle_id, hour)` groups contain multiple rows, so the within-hour sequence is explicitly treated as a source-row tie-break assumption rather than an observed finer timestamp.
+
 ## Current Empirical Message
 
 Using the publication defaults selected by the support sweep,
@@ -94,7 +108,7 @@ The implementation follows this logic:
    - `prior_eco_mode`
 3. Restrict the causal policy state to **pre-decision deployable covariates** motivated by a domain DAG.
 4. Exclude:
-   - post-action outcomes like `co2_kg`, `crash`, `near_miss`, `lateness_min`, `on_time`
+   - post-action outcomes like `avg_speed_kmph`, `travel_time_min`, `fuel_liters`, `co2_kg`, `crash`, `near_miss`, `lateness_min`, `on_time`, `harsh_events`
    - latent simulator columns from the deployable policy
 5. Estimate the logged behavior policy with a calibrated classifier.
 6. Train:
@@ -209,6 +223,9 @@ Current tests cover:
 
 - no post-action state leakage,
 - trajectory construction and temporal splitting,
+- dictionary/schema and semantic-reference alignment,
+- real categorical-level audits on the raw dataset,
+- metadata synchronization with config state definitions,
 - binary policy outputs,
 - support-constrained fallback behavior,
 - ablation policy registration,

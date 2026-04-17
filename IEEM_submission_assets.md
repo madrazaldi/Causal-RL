@@ -44,7 +44,7 @@ This note maps the repo outputs to the manuscript in [outline.md](/Users/anonymo
 
 - Present the repo as an **applied logistics case study** and **confounder-aware offline RL benchmark**, not as proof that causal FQI is the best overall policy.
 - Use doubly robust estimates as the main table values.
-- State explicitly that `non_causal_fqi` is the strongest overall policy in the current benchmark at `-4.521` with 95% CI `[-4.707, -4.336]`.
+- State explicitly that `non_causal_fqi` is the strongest overall policy in the current benchmark at `-4.457` with 95% CI `[-4.636, -4.280]`.
 - State explicitly that `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) while trailing the broader non-causal comparator; the confidence intervals overlap, so the difference is not decisive.
 - State explicitly that **support thresholds τ_μ=0.05 and τ_Q=0.50 were selected on the validation set**, not the test set, to avoid implicit test-set tuning.
 - Treat IPS as a consistency check and FQE as an appendix diagnostic. Explain the FQE scale difference (discounted trajectory accumulation vs per-step DR) proactively rather than leaving it unexplained.

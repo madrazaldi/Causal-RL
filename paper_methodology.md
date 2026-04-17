@@ -15,6 +15,8 @@ $$
 
 where each trajectory corresponds to one `date`-`vehicle_id` pair, $s_{i,t}$ is the pre-decision state at step $t$, $a_{i,t}\in\{0,1\}$ is the logged action, $r_{i,t}$ is the observed reward, $s_{i,t+1}$ is the next state, and $d_{i,t}\in\{0,1\}$ indicates trajectory termination.
 
+According to the provider documentation and follow-up clarification, one row represents a single dispatch decision / trip segment / decision epoch for one vehicle in one zone. The action `eco_mode` is therefore interpreted as an epoch-level controllable decision that may change within the same vehicle-day trajectory. The variable `hour` denotes the time bucket in which the decision epoch occurred and is not interpreted as a literal departure or arrival timestamp.
+
 The state is restricted to **pre-decision deployable covariates**. In the implementation, the state contains seven groups of information:
 
 1. **Time and location context**: `day_idx`, `dow`, `hour`, `zone`.
@@ -22,7 +24,7 @@ The state is restricted to **pre-decision deployable covariates**. In the implem
 3. **Road and environmental context**: `speed_limit_kmph`, `intersection_density`, `road_grade_index`, `road_risk_index`, `rain`, `rain_intensity`, `temperature_c`, `visibility_km`, `event_indicator`, `roadworks_indicator`, `traffic_index`, `traffic_state`.
 4. **Prior decisions**: `route_risky`, `dispatch_delay_min` — deliberate choices (route selection and dispatch batching) made before the eco-mode decision, which affect both action choice and outcomes.
 5. **Sequential context**: `step_idx`, `remaining_steps`, `rolling_mean_traffic`, `rolling_cumulative_lateness`, `rolling_incident_count`, `prior_reward_primary`, `prior_eco_mode`.
-6. **Non-causal proxy extensions** for the broader comparator: `compatibility_violation`, `distance_km` (planned route distance, correlated with route choice), and `risk_score` (predicted safety risk embedding latent driver characteristics).
+6. **Non-causal proxy extensions** for the broader comparator: `compatibility_violation` (known pre-dispatch vehicle-commodity assignment flag), `distance_km` (planned pre-decision route distance, correlated with route choice), and `risk_score` (predicted safety risk score summarizing operational risk factors).
 
 The action space is binary:
 
@@ -131,7 +133,7 @@ $$
 
 **Unobserved confounders.** Two variables in the synthetic simulator — `driver_skill_latent` and `maintenance_latent` — are not available to a deployable controller and are therefore excluded from $Z_t$. These represent genuine unobserved confounders that violate strict identification. The conditional independence assumption above is thus a **working heuristic, not a formally proven identification claim**. The support constraint (Section 3.2.4) partially mitigates this risk: by deferring to logged behavior in low-propensity states, the policy avoids acting aggressively in regions where unobserved confounders may systematically distort the observational distribution.
 
-**Non-causal proxy variables.** The non-causal FQI comparator additionally uses `risk_score` (a compound feature derived from route and vehicle covariates), `distance_km`, and `compatibility_violation`. These are excluded from the causal state because they may embed post-decision or latent information through their construction and because they reduce interpretability. Their inclusion in the non-causal state is intentional: it tests whether the performance advantage of the broader state is worth the interpretability and deployability cost.
+**Non-causal proxy variables.** The non-causal FQI comparator additionally uses `risk_score` (a predicted safety risk proxy), `distance_km` (planned segment distance), and `compatibility_violation` (a known vehicle-cargo assignment flag). These variables are treated as pre-decision but more weakly interpretable operational proxies, so they are excluded from the causal state and retained only in the broader non-causal comparator. Their inclusion is intentional: it tests whether any performance gain from a broader proxy-rich state is worth the interpretability and deployability cost.
 
 **Disclaimer.** This causal state design constitutes a domain-informed heuristic adjustment, not a formally proven causal identification. The analysis does not claim that do-calculus identification holds under the true data-generating process. The contribution is a principled, operationally motivated state restriction that reduces the risk of confounding-driven policy overfit relative to the unconstrained non-causal baseline.
 
@@ -306,7 +308,7 @@ The study uses a synthetic urban logistics dataset with:
 - observed binary actions `eco_mode`,
 - measured outcomes `lateness_min`, `co2_kg`, `near_miss`, `crash`, and `on_time`.
 
-Each trajectory is defined by the ordered pair (`date`, `vehicle_id`). Within each trajectory, records are sorted by `hour` and a stable row index. The resulting decision log stores:
+Each trajectory is defined by the ordered pair (`date`, `vehicle_id`). Within each trajectory, records are sorted by `hour` and a stable row index derived from original CSV order. This tie-break rule is necessary because the raw schema contains no finer-grained event timestamp, and about 19.4% of (`date`, `vehicle_id`, `hour`) groups contain multiple rows. The resulting decision log stores:
 
 $$
 (s_t, a_t, r_t, s_{t+1}, d_t)
@@ -343,7 +345,7 @@ $$
 
 Terminal next-state values are filled with neutral placeholders so that all transitions remain well-defined in tabular form.
 
-To preserve deployability and avoid leakage, the policy state excludes post-action variables and latent simulator fields. These are retained only in the raw data or metadata, not in the deployed state used for learning.
+To preserve deployability and avoid leakage, the policy state excludes post-action variables and latent simulator fields. In particular, realized outcomes such as `crash`, `near_miss`, `lateness_min`, `co2_kg`, `fuel_liters`, `travel_time_min`, `avg_speed_kmph`, and `harsh_events` are never used as current-step policy inputs. These are retained only in the raw data or metadata, not in the deployed state used for learning.
 
 ### 4.2 Implementation Details
 
