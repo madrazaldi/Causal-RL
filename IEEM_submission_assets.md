@@ -20,9 +20,9 @@ This note maps the repo outputs to the manuscript in [outline.md](/Users/anonymo
   - [results/reward_sensitivity.csv](/Users/anonymoize/Projects/Causal RL/results/reward_sensitivity.csv): reward-weight sensitivity comparison.
   - [figures/reward_sensitivity.png](/Users/anonymoize/Projects/Causal RL/figures/reward_sensitivity.png): reward sensitivity figure for the case-study narrative.
 
-- Section 5.5 (`Interpretability and Deployment Safety`) — **NEW**
+- Section 5.2 (`What the causal framing contributes`) — interpretability evidence
   - [results/feature_importance.csv](/Users/anonymoize/Projects/Causal RL/results/feature_importance.csv): permutation importance for causal FQI Q-function (averaged over both actions). Top features: `remaining_steps` (1.30), `time_window_tightness` (0.37), `speed_limit_kmph` (0.10), `traffic_index` (0.06).
-  - [figures/feature_importance.png](/Users/anonymoize/Projects/Causal RL/figures/feature_importance.png): top-10 feature importance bar chart; use in Section 5.5 to support the interpretability claim.
+  - [figures/feature_importance.png](/Users/anonymoize/Projects/Causal RL/figures/feature_importance.png): top-10 feature importance bar chart; use in Section 5.2 point 4 to support the interpretability claim ("empirical feature importance confirms operationally interpretable drivers").
 
 ## Recommended Appendix / Diagnostic Assets
 
@@ -44,7 +44,7 @@ This note maps the repo outputs to the manuscript in [outline.md](/Users/anonymo
 
 - Present the repo as an **applied logistics case study** and **confounder-aware offline RL benchmark**, not as proof that causal FQI is the best overall policy.
 - Use doubly robust estimates as the main table values.
-- State explicitly that `non_causal_fqi` is the strongest overall policy in the current benchmark at `-4.457` with 95% CI `[-4.636, -4.280]`.
+- State explicitly that `non_causal_fqi` is the strongest overall policy in the current benchmark at `-4.521` with 95% CI `[-4.707, -4.336]`.
 - State explicitly that `causal_fqi` improves over `logged_behavior` (`-4.694` vs `-4.826`) while trailing the broader non-causal comparator; the confidence intervals overlap, so the difference is not decisive.
 - State explicitly that **support thresholds τ_μ=0.05 and τ_Q=0.50 were selected on the validation set**, not the test set, to avoid implicit test-set tuning.
 - Treat IPS as a consistency check and FQE as an appendix diagnostic. Explain the FQE scale difference (discounted trajectory accumulation vs per-step DR) proactively rather than leaving it unexplained.

@@ -294,195 +294,241 @@ def plot_reward_sensitivity(reward_df: pd.DataFrame) -> None:
 
 
 def plot_causal_graph(metadata: dict) -> None:
-    causal_edges = metadata.get("causal_dag", {}).get("edges", [])
-    edge_set = {tuple(edge) for edge in causal_edges}
-
-    fig, ax = plt.subplots(figsize=(12.5, 6.8), facecolor=PAPER_BG)
+    fig, ax = plt.subplots(figsize=(10.5, 5.8), facecolor=PAPER_BG)
     ax.set_facecolor(PAPER_BG)
     ax.axis("off")
-    ax.set_xlim(0, 10.8)
-    ax.set_ylim(0.3, 7.2)
+    ax.set_xlim(0, 10.5)
+    ax.set_ylim(0, 5.8)
 
-    group = FancyBboxPatch(
-        (0.55, 1.0),
-        4.0,
-        5.55,
+    # ── Observed confounder group box (Z) ──────────────────────────────────
+    z_box = FancyBboxPatch(
+        (0.3, 0.9), 3.5, 4.1,
         boxstyle="round,pad=0.04,rounding_size=0.18",
-        facecolor="#f8f4ea",
-        edgecolor="#d5c5a3",
-        linewidth=1.2,
-        linestyle="-",
-        alpha=0.9,
+        facecolor=CONF_FILL, edgecolor=CONF_EDGE,
+        linewidth=1.3, alpha=0.92,
     )
-    ax.add_patch(group)
+    ax.add_patch(z_box)
     ax.text(
-        2.55,
-        6.35,
-        "Observed Pre-Decision Context",
-        ha="center",
-        va="center",
-        fontsize=15,
-        fontweight="semibold",
-        color=CONF_EDGE,
-        family="DejaVu Serif",
+        2.05, 4.82, "Z  —  Observed Pre-Decision Context",
+        ha="center", va="center", fontsize=11, fontweight="bold",
+        color=CONF_EDGE, family="DejaVu Sans",
     )
 
-    confounders = [
-        ("time_context", "Time Context", "hour, day, zone"),
-        ("vehicle_context", "Vehicle Context", "type, age, efficiency"),
-        ("demand_pressure", "Demand Pressure", "load and time window"),
-        ("weather_traffic", "Weather & Traffic", "rain, visibility, congestion"),
-        ("route_risk", "Route Risk", "grade, intersections, road risk"),
-        ("prior_decisions", "Prior Decisions", "route choice, dispatch delay"),
-        ("recent_operational_history", "Recent History", "prior reward and eco state"),
+    confounder_rows = [
+        ("Time Context", "hour, day_idx, dow, zone"),
+        ("Vehicle & Task", "type, age, efficiency, demand, time window"),
+        ("Road & Environment", "speed, grade, rain, traffic, visibility"),
+        ("Prior Decisions", "route_risky, dispatch_delay_min"),
+        ("Sequential History", "rolling traffic, lateness, prior eco_mode"),
     ]
-    y_positions = [5.55, 4.85, 4.15, 3.45, 2.75, 2.05, 1.35]
-    conf_boxes: dict[str, dict[str, float]] = {}
-    for (_, label, subtitle), y in zip(confounders, y_positions):
-        key = next(key for key, item_label, _ in confounders if item_label == label)
-        conf_boxes[key] = _add_box(
-            ax,
-            center=(2.55, y),
-            width=2.95,
-            height=0.62,
-            label=label,
-            subtitle=subtitle,
-            facecolor=CONF_FILL,
-            edgecolor=CONF_EDGE,
-            fontsize=14,
+    row_ys = [4.22, 3.55, 2.88, 2.20, 1.52]
+    for (label, sub), y in zip(confounder_rows, row_ys):
+        row_patch = FancyBboxPatch(
+            (0.52, y - 0.27), 3.06, 0.52,
+            boxstyle="round,pad=0.02,rounding_size=0.07",
+            facecolor="#fdf8ef", edgecolor=CONF_EDGE,
+            linewidth=0.9, alpha=0.95,
+        )
+        ax.add_patch(row_patch)
+        ax.text(2.05, y + 0.01, label, ha="center", va="center",
+                fontsize=9.5, fontweight="semibold", color=INK, family="DejaVu Sans")
+        ax.text(2.05, y - 0.16, sub, ha="center", va="center",
+                fontsize=7.8, color=MUTED, family="DejaVu Sans")
+
+    # ── Eco-Mode node (A) ──────────────────────────────────────────────────
+    eco_cx, eco_cy = 6.2, 3.6
+    eco_patch = FancyBboxPatch(
+        (eco_cx - 1.05, eco_cy - 0.52), 2.1, 1.04,
+        boxstyle="round,pad=0.04,rounding_size=0.14",
+        facecolor=ACTION_FILL, edgecolor=ACTION_EDGE,
+        linewidth=1.5,
+    )
+    ax.add_patch(eco_patch)
+    ax.text(eco_cx, eco_cy + 0.12, "A  —  Eco-Mode",
+            ha="center", va="center", fontsize=11, fontweight="bold",
+            color=ACTION_EDGE, family="DejaVu Sans")
+    ax.text(eco_cx, eco_cy - 0.18, "binary action  ∈ {0, 1}",
+            ha="center", va="center", fontsize=8.5, color=MUTED, family="DejaVu Sans")
+
+    # ── Reward node (Y) ────────────────────────────────────────────────────
+    rew_cx, rew_cy = 8.85, 1.95
+    rew_patch = FancyBboxPatch(
+        (rew_cx - 1.0, rew_cy - 0.52), 2.0, 1.04,
+        boxstyle="round,pad=0.04,rounding_size=0.14",
+        facecolor=REWARD_FILL, edgecolor=REWARD_EDGE,
+        linewidth=1.5,
+    )
+    ax.add_patch(rew_patch)
+    ax.text(rew_cx, rew_cy + 0.12, "Y  —  Reward",
+            ha="center", va="center", fontsize=11, fontweight="bold",
+            color=REWARD_EDGE, family="DejaVu Sans")
+    ax.text(rew_cx, rew_cy - 0.18, "lateness, CO₂, safety",
+            ha="center", va="center", fontsize=8.5, color=MUTED, family="DejaVu Sans")
+
+    # ── Unobserved confounders box (U) — dashed ────────────────────────────
+    u_cx, u_cy = 2.05, 0.38
+    u_patch = FancyBboxPatch(
+        (0.52, 0.10), 3.06, 0.56,
+        boxstyle="round,pad=0.02,rounding_size=0.07",
+        facecolor=PAPER_BG, edgecolor=MUTED,
+        linewidth=1.0, linestyle="--", alpha=0.9,
+    )
+    ax.add_patch(u_patch)
+    ax.text(u_cx, 0.45, "U  —  Unobserved (excluded from state)",
+            ha="center", va="center", fontsize=8.5, color=MUTED,
+            fontstyle="italic", family="DejaVu Sans")
+    ax.text(u_cx, 0.22, "driver_skill_latent,  maintenance_latent",
+            ha="center", va="center", fontsize=7.8, color=MUTED, family="DejaVu Sans")
+
+    # ── Non-causal proxy exclusion note ────────────────────────────────────
+    excl_patch = FancyBboxPatch(
+        (5.0, 4.55), 5.2, 1.0,
+        boxstyle="round,pad=0.03,rounding_size=0.10",
+        facecolor="#f5f0e8", edgecolor="#b0a080",
+        linewidth=0.9, linestyle="--", alpha=0.88,
+    )
+    ax.add_patch(excl_patch)
+    ax.text(7.6, 5.28, "Non-causal proxies (excluded from causal state)",
+            ha="center", va="center", fontsize=8.5, fontweight="semibold",
+            color="#7a6040", family="DejaVu Sans")
+    ax.text(7.6, 5.0, "risk_score  ·  distance_km  ·  compatibility_violation",
+            ha="center", va="center", fontsize=8.0, color=MUTED, family="DejaVu Sans")
+    ax.text(7.6, 4.75,
+            "conflate pre-decision context with treatment-adjacent or latent information",
+            ha="center", va="center", fontsize=7.5, color=MUTED,
+            fontstyle="italic", family="DejaVu Sans")
+
+    # ── Causal arrows ──────────────────────────────────────────────────────
+    # Z → A  (single clean bundle arrow)
+    _add_arrow(ax, (3.8, 3.6), (eco_cx - 1.05, eco_cy),
+               color=ACTION_EDGE, lw=2.0, mutation_scale=14)
+    ax.text(4.7, 3.82, "Z → A", fontsize=8, color=ACTION_EDGE,
+            ha="center", va="bottom", family="DejaVu Sans", fontstyle="italic")
+
+    # Z → Y  (bundle arrow, curves below eco-mode box)
+    _add_arrow(ax, (3.8, 2.5), (rew_cx - 1.0, rew_cy + 0.15),
+               color=REWARD_EDGE, lw=2.0, rad=0.15, mutation_scale=14)
+    ax.text(6.1, 1.80, "Z → Y", fontsize=8, color=REWARD_EDGE,
+            ha="center", va="top", family="DejaVu Sans", fontstyle="italic")
+
+    # A → Y  (primary causal path)
+    _add_arrow(ax, (eco_cx + 1.05, eco_cy - 0.25), (rew_cx - 1.0, rew_cy + 0.2),
+               color=INK, lw=2.3, rad=-0.08, mutation_scale=16)
+    ax.text(7.7, 3.05, "A → Y", fontsize=8.5, color=INK,
+            ha="center", va="center", family="DejaVu Sans",
+            fontweight="semibold", fontstyle="italic")
+
+    # U ↝ A and U ↝ Y  (dashed — unobserved, cannot be blocked)
+    for target_x, target_y, rad_ in [(eco_cx - 0.6, eco_cy - 0.52, -0.3),
+                                       (rew_cx - 0.5, rew_cy - 0.52, 0.1)]:
+        ax.annotate(
+            "", xy=(target_x, target_y), xytext=(u_cx, 0.66),
+            arrowprops=dict(
+                arrowstyle="-|>", color=MUTED, lw=1.1,
+                linestyle="dashed",
+                connectionstyle=f"arc3,rad={rad_}",
+            ),
         )
 
-    eco_box = _add_box(
-        ax,
-        center=(6.55, 4.85),
-        width=2.15,
-        height=0.9,
-        label="Eco-Mode",
-        subtitle="observed logistics action",
-        facecolor=ACTION_FILL,
-        edgecolor=ACTION_EDGE,
-        fontsize=16,
-    )
-    reward_box = _add_box(
-        ax,
-        center=(9.1, 3.15),
-        width=2.1,
-        height=0.9,
-        label="Reward",
-        subtitle="service, safety, emissions",
-        facecolor=REWARD_FILL,
-        edgecolor=REWARD_EDGE,
-        fontsize=16,
-    )
-
-    for index, (node_key, _, _) in enumerate(confounders):
-        conf_box = conf_boxes[node_key]
-        if (node_key, "eco_mode") in edge_set:
-            _add_arrow(
-                ax,
-                (conf_box["right"], conf_box["cy"]),
-                (eco_box["left"], eco_box["cy"] + (index - 3.0) * 0.045),
-                color=ACTION_EDGE,
-                lw=1.65,
-                rad=(index - 3.0) * 0.035,
-            )
-        if (node_key, "reward") in edge_set:
-            _add_arrow(
-                ax,
-                (conf_box["right"], conf_box["cy"] - 0.015),
-                (reward_box["left"], reward_box["cy"] + (index - 3.0) * 0.04),
-                color=REWARD_EDGE,
-                lw=1.55,
-                rad=(index - 3.0) * 0.06,
-                alpha=0.85,
-            )
-
-    if ("eco_mode", "reward") in edge_set:
-        _add_arrow(
-            ax,
-            (eco_box["right"], eco_box["cy"] - 0.08),
-            (reward_box["left"], reward_box["cy"] + 0.28),
-            color=INK,
-            lw=2.2,
-            rad=-0.05,
-            mutation_scale=15,
-        )
-
-    ax.text(
-        6.85,
-        6.45,
-        "Confounder-aware state design supports\ncredible offline decision learning",
-        ha="center",
-        va="center",
-        fontsize=11,
-        color=MUTED,
-        family="DejaVu Sans",
-    )
     ax.set_title(
-        "Confounder-Aware State Design for Urban Logistics Eco-Mode Control",
-        fontsize=22,
-        fontweight="semibold",
-        pad=18,
-        color=INK,
-        family="DejaVu Serif",
+        "Confounder-Aware State Design  (Backdoor DAG)  —  Urban Logistics Eco-Mode Control",
+        fontsize=12, fontweight="semibold", pad=10, color=INK, family="DejaVu Sans",
     )
-    fig.tight_layout(pad=1.1)
+    fig.tight_layout(pad=0.9)
     _save_figure(fig, "causal_graph")
     plt.close(fig)
 
 
 def plot_workflow() -> None:
-    fig, ax = plt.subplots(figsize=(14.5, 4.2), facecolor=PAPER_BG)
+    fig, ax = plt.subplots(figsize=(13.0, 3.6), facecolor=PAPER_BG)
     ax.set_facecolor(PAPER_BG)
     ax.axis("off")
-    ax.set_xlim(0.3, 13.9)
-    ax.set_ylim(0.6, 4.0)
+    ax.set_xlim(0, 13.0)
+    ax.set_ylim(0, 3.6)
 
     steps = [
-        ("Historical Logistics Logs", "Trips, fleet attributes, demand, and route context"),
-        ("Confounder-Aware State", "Retain only pre-decision covariates from the causal DAG"),
-        ("Offline Policy Learning", "Fit behavior and value models without online exploration"),
-        ("Off-Policy Evaluation", "Validate with doubly robust and FQE diagnostics"),
-        ("Decision-Support Recommendation", "Apply conservative eco-mode overrides in operations"),
-    ]
-    centers = [(1.65, 2.1), (4.35, 2.1), (7.05, 2.1), (9.75, 2.1), (12.45, 2.1)]
-    cards = [
-        _add_card(
-            ax,
-            center=center,
-            width=2.2,
-            height=1.7,
-            step_number=index,
-            title=title,
-            subtitle=subtitle,
-        )
-        for index, ((title, subtitle), center) in enumerate(zip(steps, centers), start=1)
+        (1, "Historical\nLogistics Logs",     "Trips, fleet, demand,\nroute context"),
+        (2, "Confounder-Aware\nState Design",  "Backdoor DAG; exclude\npost-action & latent vars"),
+        (3, "Offline Policy\nLearning",        "FQI (causal & non-causal);\nbehavior policy estimation"),
+        (4, "Off-Policy\nEvaluation",          "Doubly robust primary;\nIPS check; FQE diagnostic"),
+        (5, "Decision-Support\nRecommendation","Conservative eco-mode\noverride; fallback to log"),
     ]
 
-    for index, (card_left, card_right) in enumerate(zip(cards[:-1], cards[1:])):
-        start = (card_left["right"] + 0.08, 2.1)
-        end = (card_right["left"] - 0.08, 2.1)
-        _add_arrow(ax, start, end, color=FLOW_ACCENT, lw=2.0, mutation_scale=13)
+    card_w, card_h = 2.1, 1.55
+    card_cy = 1.9
+    gap = 0.4
+    n = len(steps)
+    total_w = n * card_w + (n - 1) * gap
+    x0 = (13.0 - total_w) / 2
+
+    card_positions = []
+    for i, (num, title, sub) in enumerate(steps):
+        cx = x0 + i * (card_w + gap) + card_w / 2
+        card_positions.append(cx)
+        bx = cx - card_w / 2
+        by = card_cy - card_h / 2
+
+        # card body
+        card_patch = FancyBboxPatch(
+            (bx, by), card_w, card_h,
+            boxstyle="round,pad=0.03,rounding_size=0.12",
+            facecolor="#f7f4ea", edgecolor=FLOW_EDGE,
+            linewidth=1.2,
+        )
+        ax.add_patch(card_patch)
+
+        # left accent strip
+        accent = FancyBboxPatch(
+            (bx, by), 0.12, card_h,
+            boxstyle="round,pad=0.01,rounding_size=0.06",
+            facecolor=FLOW_ACCENT, edgecolor=FLOW_ACCENT,
+            linewidth=0,
+        )
+        ax.add_patch(accent)
+
+        # step badge (circle floating above top-left of card)
+        badge_cx = bx + 0.28
+        badge_cy = by + card_h + 0.01
+        badge = Circle(
+            (badge_cx, badge_cy), radius=0.19,
+            facecolor=FLOW_ACCENT, edgecolor="white",
+            linewidth=1.2, zorder=5,
+        )
+        ax.add_patch(badge)
+        ax.text(badge_cx, badge_cy, str(num),
+                ha="center", va="center", fontsize=9.5, fontweight="bold",
+                color="white", family="DejaVu Sans", zorder=6)
+
+        # title and subtitle text (right of accent strip)
+        text_cx = bx + 0.12 + (card_w - 0.12) / 2
+        ax.text(text_cx, card_cy + 0.22, title,
+                ha="center", va="center", fontsize=9.5, fontweight="semibold",
+                color=INK, family="DejaVu Sans", linespacing=1.35)
+        ax.text(text_cx, card_cy - 0.38, sub,
+                ha="center", va="center", fontsize=7.8, color=MUTED,
+                family="DejaVu Sans", linespacing=1.3)
+
+    # arrows between cards
+    for i in range(len(steps) - 1):
+        cx_left = card_positions[i]
+        cx_right = card_positions[i + 1]
+        start_x = cx_left + card_w / 2 + 0.06
+        end_x = cx_right - card_w / 2 - 0.06
+        _add_arrow(ax, (start_x, card_cy), (end_x, card_cy),
+                   color=FLOW_ACCENT, lw=1.8, mutation_scale=12)
 
     ax.text(
-        7.1,
-        0.95,
-        "The pipeline is designed for conservative logistics decision support, not autonomous control.",
-        ha="center",
-        va="center",
-        fontsize=11,
-        color=MUTED,
-        family="DejaVu Sans",
+        6.5, 0.28,
+        "Conservative decision support — not autonomous control.  "
+        "Support-constrained overrides; fallback to logged behavior when uncertain.",
+        ha="center", va="center", fontsize=8.5, color=MUTED,
+        family="DejaVu Sans", fontstyle="italic",
     )
     ax.set_title(
         "Offline Decision-Support Workflow for the Urban Logistics Case Study",
-        fontsize=20,
-        fontweight="semibold",
-        pad=18,
-        color=INK,
-        family="DejaVu Serif",
+        fontsize=12, fontweight="semibold", pad=8, color=INK, family="DejaVu Sans",
     )
-    fig.tight_layout(pad=1.1)
+    fig.tight_layout(pad=0.8)
     _save_figure(fig, "workflow")
     plt.close(fig)
 
