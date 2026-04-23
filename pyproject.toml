@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "causal-rl"
+version = "0.1.0"
+description = "Offline causal RL pipeline for eco-mode control in urban logistics."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Causal-RL contributors" }]
+keywords = ["causal-inference", "reinforcement-learning", "offline-rl", "urban-logistics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+]
+
+# Pinned to match requirements.txt exactly. Keep both files in sync.
+dependencies = [
+    "numpy==2.4.3",
+    "pandas==3.0.2",
+    "scikit-learn==1.8.0",
+    "matplotlib==3.10.8",
+    "seaborn==0.13.2",
+    "joblib==1.5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.3",
+]
+
+[project.scripts]
+causal-rl-build-dataset = "causal_rl.build_dataset:main"
+causal-rl-train = "causal_rl.train_policies:main"
+causal-rl-evaluate = "causal_rl.evaluate:main"
+causal-rl-report = "causal_rl.report:main"
+
+[tool.setuptools.packages.find]
+include = ["causal_rl*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

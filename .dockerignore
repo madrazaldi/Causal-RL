@@ -1,0 +1,26 @@
+# VCS and local environments
+.git
+.gitignore
+.venv
+.DS_Store
+
+# Python bytecode and caches
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+
+# Generated pipeline outputs - regenerated inside the container via `make all`
+artifacts/
+models/
+results/
+figures/
+
+# Editor and misc
+.rtk
+.idea
+.vscode
+
+# Docker self
+Dockerfile
+.dockerignore
