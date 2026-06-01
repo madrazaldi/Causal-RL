@@ -1,0 +1,43 @@
+.DS_Store
+/.pytest_cache
+/tmp/
+/.venv
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+/tests/
+
+# Generated experiment outputs. Rebuild with `make all`.
+/artifacts/
+/models/
+/results/
+
+# Generated report figures. Keep the manuscript inputs tracked.
+/figures/*
+!/figures/
+!/figures/workflow.png
+!/figures/policy_values.png
+!/figures/robustness_heatmap.png
+
+# Local paper reference copies and submission scratch files are not needed for
+# the public implementation/manuscript repo.
+/paper/refs/
+/paper/Feedback*.pdf
+/IEEM_submission_assets.md
+/IEEM_publishability_assessment*.md
+/docs/archive/
+
+# Optional offline dependency bundles can be large and platform-specific.
+vendor/wheels/*
+!vendor/wheels/README.md
+
+# LaTeX build outputs for the manuscript.
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+paper/tmp*.tmp

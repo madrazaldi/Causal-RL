@@ -1,0 +1,24 @@
+.git
+.pytest_cache
+__pycache__
+*.py[cod]
+.DS_Store
+
+# Keep generated Python environments and notebook/cache output out of builds.
+.venv
+venv
+env
+.mypy_cache
+.ruff_cache
+.ipynb_checkpoints
+
+# Generated outputs and local-only paper sources are not needed in the Docker
+# build context. They are produced by the Makefile pipeline when needed.
+artifacts
+models
+results
+figures
+paper/refs
+paper/Feedback*.pdf
+output
+vendor/wheels

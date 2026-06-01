@@ -1,0 +1,217 @@
+{
+    "dataset_name": "CAUSALOG Synthetic Urban Logistics Dataset",
+    "unit_of_analysis": "One dispatch decision / trip segment for one vehicle in one zone at one decision epoch",
+    "variables": {
+        "date": {
+            "type": "date",
+            "unit": "YYYY-MM-DD",
+            "description": "Calendar date of operation"
+        },
+        "day_idx": {
+            "type": "integer",
+            "unit": "day",
+            "description": "Sequential day number in the simulation"
+        },
+        "dow": {
+            "type": "integer",
+            "value": "0-6",
+            "description": "Day of week indicator with 0 = Sunday, 1 = Monday,..."
+        },
+        "hour": {
+            "type": "integer",
+            "value": "0-23",
+            "description": "Hour of day when the decision occurred"
+        },
+        "zone": {
+            "type": "integer",
+            "description": "Service zone or delivery region"
+        },
+        "vehicle_id": {
+            "type": "integer",
+            "description": "Unique identifier for each vehicle"
+        },
+        "vehicle_type": {
+            "type": "categorical",
+            "description": "Type of vehicle \"common\" or \"cooling\" truck"
+        },
+        "vehicle_age_years": {
+            "type": "continuous",
+            "unit": "years",
+            "description": "Age of the vehicle"
+        },
+        "vehicle_efficiency_index": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Vehicle fuel or energy efficiency indicator"
+        },
+        "maintenance_latent": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Vehicle maintenance condition. Positive values indicate better vehicle condition (well-maintained), while negative values indicate poorer vehicle condition."
+        },
+        "driver_skill_latent": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Driver skill or safety awareness level. Positive means better driver skill"
+        },
+        "driver_risk_propensity_latent": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Driver tendency to take risks while driving"
+        },
+        "commodity_type": {
+            "type": "categorical",
+            "description": "Type of goods being transported: general or cold-chain"
+        },
+        "demand_size": {
+            "type": "continuous",
+            "unit": "100kg",
+            "description": "Quantity of goods to be delivered"
+        },
+        "time_window_tightness": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Delivery schedule pressure level"
+        },
+        "service_time_min": {
+            "type": "continuous",
+            "unit": "minutes",
+            "description": "Time required to complete service at delivery location"
+        },
+        "speed_limit_kmph": {
+            "type": "continuous",
+            "unit": "km/h",
+            "description": "Maximum legally allowed vehicle speed"
+        },
+        "intersection_density": {
+            "type": "continuous",
+            "unit": "intersections/km",
+            "description": "Number of intersections along the road segment"
+        },
+        "road_grade_index": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Standardized indicator of road slope relative to the network average, where positive values indicate steeper uphill terrain and negative values indicate flatter or downhill terrain."
+        },
+        "road_risk_index": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Road infrastructure safety risk score"
+        },
+        "rain": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Rain occurrence indicator"
+        },
+        "rain_intensity": {
+            "type": "continuous",
+            "unit": "mm/hour",
+            "description": "Severity of rainfall"
+        },
+        "temperature_c": {
+            "type": "continuous",
+            "unit": "Celsius",
+            "description": "Ambient air temperature"
+        },
+        "visibility_km": {
+            "type": "continuous",
+            "unit": "km",
+            "description": "Distance the driver can clearly see ahead"
+        },
+        "event_indicator": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "External event affecting traffic conditions"
+        },
+        "roadworks_indicator": {
+            "type": "binary",
+            "unit": "0/1",
+            "description": "Indicates whether road construction is present"
+        },
+        "traffic_index": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Numerical congestion level"
+        },
+        "traffic_state": {
+            "type": "categorical",
+            "unit": "level",
+            "description": "Traffic condition level: low, medium, high"
+        },
+        "route_risky": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Route choice: risky/shorter vs safe/longer"
+        },
+        "eco_mode": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Eco-driving mode activation"
+        },
+        "dispatch_delay_min": {
+            "type": "continuous",
+            "unit": "minutes",
+            "description": "Delay before dispatching vehicle"
+        },
+        "compatibility_violation": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Indicates whether vehicle types are compatible with commodity types"
+        },
+        "distance_km": {
+            "type": "continuous",
+            "unit": "km",
+            "description": "Distance traveled during the trip segment"
+        },
+        "avg_speed_kmph": {
+            "type": "continuous",
+            "unit": "km/h",
+            "description": "Average speed during the trip segment"
+        },
+        "travel_time_min": {
+            "type": "continuous",
+            "unit": "minutes",
+            "description": "Time required to complete the trip segment"
+        },
+        "harsh_events": {
+            "type": "integer",
+            "unit": "count",
+            "description": "Number of aggressive driving events, such as hard braking, rapid acceleration, and sharp turning."
+        },
+        "fuel_liters": {
+            "type": "continuous",
+            "unit": "liters",
+            "description": "Fuel consumed during the trip segment"
+        },
+        "co2_kg": {
+            "type": "continuous",
+            "unit": "kg",
+            "description": "Carbon dioxide emissions generated during the segment"
+        },
+        "risk_score": {
+            "type": "continuous",
+            "unit": "index",
+            "description": "Composite safety risk indicator"
+        },
+        "near_miss": {
+            "type": "binary",
+            "unit": "0/1",
+            "description": "Indicator of a safety-critical event where a collision was narrowly avoided, representing elevated crash risk without an actual accident."
+        },
+        "crash": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Crash occurrence indicator"
+        },
+        "lateness_min": {
+            "type": "continuous",
+            "unit": "minutes",
+            "description": "Delivery delay time"
+        },
+        "on_time": {
+            "type": "binary",
+            "value": "0/1",
+            "description": "Indicates whether delivery was completed on schedule"
+        }
+    }
+}
