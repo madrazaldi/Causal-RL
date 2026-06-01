@@ -1,10 +1,10 @@
-# Confounder-Aware Eco-Mode Decision Support in Synthetic Urban Logistics
+# Confounder-Aware Eco-Driving Decision Support for Simulated Urban Logistics
 
 This repository is an **IEEM-oriented manuscript and experiment package** for a **synthetic urban logistics case study** on **confounder-aware offline policy learning**.
 
 The paper framing is:
 
-**Confounder-Aware Eco-Mode Decision Support in Synthetic Urban Logistics**
+**Confounder-Aware Eco-Driving Decision Support for Simulated Urban Logistics**
 
 The project studies one logistics decision only:
 
@@ -36,7 +36,7 @@ It:
 - builds sequential decision logs with current-state and next-state features,
 - constructs rewards that balance service, safety, and emissions,
 - estimates the observed logged-action policy,
-- trains heuristic, non-causal FQI, and confounder-aware FQI policies,
+- trains heuristic, minimal, non-causal FQI, and confounder-aware FQI policies,
 - evaluates them with off-policy estimators,
 - produces figures and tables for an applied logistics paper.
 
@@ -84,8 +84,10 @@ the overall doubly robust results in [results/main_results_table.csv](results/ma
 - `heuristic_risk_rule`: `-4.636` with 95% bootstrap CI `[-4.782, -4.495]`
 - `causal_no_vehicle_id_fqi`: `-4.670` with 95% bootstrap CI `[-4.847, -4.486]`
 - `causal_no_history_fqi`: `-4.687` with 95% bootstrap CI `[-4.862, -4.502]`
+- `never_eco`: `-4.692` with 95% bootstrap CI `[-4.891, -4.517]`
 - `causal_fqi`: `-4.694` with 95% bootstrap CI `[-4.886, -4.530]`
 - `non_causal_fqi`: `-4.712` with 95% bootstrap CI `[-4.895, -4.543]`
+- `minimal_fqi`: `-4.810` with 95% bootstrap CI `[-4.988, -4.601]`
 - `logged_behavior`: `-4.826` with 95% bootstrap CI `[-5.055, -4.577]`
 
 The honest interpretation is:
@@ -153,6 +155,7 @@ The implementation follows this logic:
    - `causal_fqi`
    - `causal_no_history_fqi`
    - `causal_no_vehicle_id_fqi`
+   - `minimal_fqi`
 7. Evaluate with:
    - doubly robust estimation as the primary policy-value estimator
    - self-normalized IPS as a secondary check
@@ -253,7 +256,9 @@ When `vendor/wheels` contains downloaded wheels, the Docker build installs with
 
 ## Main Outputs
 
-Generated artifacts are intentionally ignored and are rebuilt with `make all`:
+Generated artifacts are intentionally ignored and are rebuilt with `make all`.
+Links under `artifacts/`, `models/`, and `results/`, plus ignored generated
+figures, are available after running the pipeline:
 
 - [artifacts/decision_log.csv](artifacts/decision_log.csv): cleaned offline decision log
 - [artifacts/dataset_metadata.json](artifacts/dataset_metadata.json): metadata and confounder-aware state definitions
