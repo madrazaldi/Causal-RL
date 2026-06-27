@@ -33,10 +33,10 @@ theorem-assumptions:
 	$(PYTHON) -m causal_rl.theorem_assumptions
 
 paper:
-	cd $(PAPER_DIR) && latexmk -pdf -interaction=nonstopmode -halt-on-error paper.tex
+	cd $(PAPER_DIR) && latexmk -xelatex -interaction=nonstopmode -halt-on-error paper.tex
 
 paper-check: paper
-	@pages=$$(sed -n 's/.*Output written on paper.pdf (\([0-9][0-9]*\) pages.*/\1/p' $(PAPER_DIR)/paper.log | tail -1); \
+	@pages=$$(sed -En 's/.*Output written on paper\.(pdf|xdv) \(([0-9]+) pages.*/\2/p' $(PAPER_DIR)/paper.log | tail -1); \
 	if [ -z "$$pages" ]; then echo "Could not determine paper page count"; exit 1; fi; \
 	if [ "$$pages" -gt 5 ]; then echo "paper.pdf has $$pages pages; expected <= 5"; exit 1; fi; \
 	if grep -E "undefined references|undefined citations|Citation .* undefined|Reference .* undefined|There were undefined" $(PAPER_DIR)/paper.log; then exit 1; fi; \

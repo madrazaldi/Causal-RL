@@ -24,6 +24,7 @@ __pycache__/
 # Local paper reference copies and submission scratch files are not needed for
 # the public implementation/manuscript repo.
 /paper/refs/
+/paper/template/
 /paper/Feedback*.pdf
 /IEEM_submission_assets.md
 /IEEM_publishability_assessment*.md

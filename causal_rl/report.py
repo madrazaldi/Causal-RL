@@ -89,7 +89,7 @@ REWARD_LABELS = {
 def _save_figure(fig: plt.Figure, stem: str) -> None:
     for suffix, kwargs in {
         "png": {
-            "dpi": 300,
+            "dpi": 600,
             "metadata": {
                 "Software": "causal_rl.report",
                 "Creation Time": FIXED_EXPORT_TIME.isoformat(),

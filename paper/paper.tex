@@ -4,11 +4,21 @@
 \def\CLASSINPUTbottomtextmargin{31mm}
 \documentclass[a4paper,conference]{IEEEtran}
 \IEEEoverridecommandlockouts
-\renewcommand*{\IEEEauthorrefmark}[1]{%
-  \raisebox{0pt}[0pt][0pt]{\textsuperscript{\footnotesize #1}}}
 
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage{newtxtext,newtxmath}
+\else
+  \usepackage{fontspec}
+  \IfFontExistsTF{Times New Roman}{%
+    \setmainfont{Times New Roman}[SmallCapsFont={Times New Roman}]%
+  }{%
+    \setmainfont{TeX Gyre Termes}%
+  }
+  \usepackage{newtxmath}
+\fi
 \usepackage{cite}
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
@@ -18,6 +28,44 @@
 \usepackage{hyperref}
 \hypersetup{hidelinks}
 \setlength{\columnsep}{6mm}
+\setlength{\parindent}{6mm}
+\newcommand*{\IEEMauthorrefmark}[1]{%
+  \raisebox{0pt}[0pt][0pt]{\textsuperscript{\fontsize{8}{9}\selectfont #1}}}
+\newcommand*{\IEEMaffilrefmark}[1]{%
+  \raisebox{0pt}[0pt][0pt]{\textsuperscript{\fontsize{6.5}{7.5}\selectfont #1}}}
+\makeatletter
+\def\@IEEEauthorblockNstyle{\normalfont\fontsize{12}{14}\selectfont}
+\def\section{\@startsection{section}{1}{\z@}{1.5ex plus 1.5ex minus 0.5ex}%
+  {0.7ex plus 1ex minus 0ex}{\normalfont\normalsize\centering}}
+\def\abstract{\normalfont
+  \if@twocolumn
+    \@IEEEabskeysecsize\indent\textit{\abstractname}{\normalfont\@IEEEabskeysecsize\space-\space}\bfseries\relax
+  \else
+    \bgroup\par\addvspace{0.5\baselineskip}\centering\vspace{-1.78ex}\@IEEEabskeysecsize\textbf{\abstractname}\par\addvspace{0.5\baselineskip}\egroup\quotation\@IEEEabskeysecsize
+  \fi\@IEEEgobbleleadPARNLSP}
+\def\IEEEkeywords{\normalfont
+  \if@twocolumn
+    \@IEEEabskeysecsize\indent\textit{\IEEEkeywordsname}{\normalfont\@IEEEabskeysecsize\space-\space}\bfseries\relax
+  \else
+    \bgroup\par\addvspace{0.5\baselineskip}\centering\@IEEEabskeysecsize\textbf{\IEEEkeywordsname}\par\addvspace{0.5\baselineskip}\egroup\quotation\@IEEEabskeysecsize
+  \fi\@IEEEgobbleleadPARNLSP}
+\long\def\@makecaption#1#2{%
+  \ifx\@captype\@IEEEtablestring
+    \fontsize{8}{9}\selectfont\bgroup\par\centering
+    \@IEEEtabletopskipstrut{\normalfont #1}\\%
+    {\normalfont #2}\par\addvspace{0.5\baselineskip}\egroup
+    \@IEEEtablecaptionsepspace
+  \else
+    \@IEEEfigurecaptionsepspace
+    \setbox\@tempboxa\hbox{\normalfont\fontsize{8}{9}\selectfont {#1.}\nobreakspace\nobreakspace #2}%
+    \ifdim \wd\@tempboxa >\hsize
+      \setbox\@tempboxa\hbox{\normalfont\fontsize{8}{9}\selectfont {#1.}\nobreakspace\nobreakspace}%
+      \parbox[t]{\hsize}{\normalfont\fontsize{8}{9}\selectfont\noindent\unhbox\@tempboxa#2}%
+    \else
+      \hbox to\hsize{\normalfont\fontsize{8}{9}\selectfont\hfil\box\@tempboxa\hfil}%
+    \fi
+  \fi}
+\makeatother
 \AtBeginDocument{%
   \typeout{IEEM layout check: paper=\the\paperwidth\space x \the\paperheight; text=\the\textwidth\space x \the\textheight; columnsep=\the\columnsep; columnwidth=\the\columnwidth.}%
 }
@@ -29,12 +77,12 @@
 \title{\fontsize{14}{17}\selectfont\bfseries CONFOUNDER-AWARE ECO-DRIVING DECISION SUPPORT\\ FOR SIMULATED URBAN LOGISTICS}
 
 \author{
-\IEEEauthorblockN{M. R. Alamudi\IEEEauthorrefmark{1},
-H. Wicaksono\IEEEauthorrefmark{2},
-K. A. Prayitno\IEEEauthorrefmark{3}}
-\IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Computer Sciences and Electronics, Gadjah Mada University, Yogyakarta, Indonesia\\
-\IEEEauthorrefmark{2}School of Business, Social, and Decision Sciences, Constructor University, Bremen, Germany\\
-\IEEEauthorrefmark{3}Politeknik ATK Yogyakarta, Yogyakarta, Indonesia\\
+\IEEEauthorblockN{M. R. Alamudi\IEEMauthorrefmark{1},
+H. Wicaksono\IEEMauthorrefmark{2},
+K. A. Prayitno\IEEMauthorrefmark{3}}
+\IEEEauthorblockA{\IEEMaffilrefmark{1}Department of Computer Sciences and Electronics, Gadjah Mada University, Yogyakarta, Indonesia\\
+\IEEMaffilrefmark{2}School of Business, Social, and Decision Sciences, Constructor University, Bremen, Germany\\
+\IEEMaffilrefmark{3}Politeknik ATK Yogyakarta, Yogyakarta, Indonesia\\
 (razan@madrazaldi.dev, h.wicaksono@constructor.university, kututaji@politeknikatk.ac.id)}
 }
 
@@ -48,19 +96,20 @@ Urban logistics operators need low-emission driving decisions that do not compro
 \begin{IEEEkeywords}
 Causal inference, off-policy evaluation, offline policy learning, urban logistics
 \end{IEEEkeywords}
+\renewcommand{\refname}{REFERENCES}
 
-\section{Introduction}
+\section{INTRODUCTION}
 Urban last-mile logistics must reduce emissions and fuel use without degrading service reliability or safety \cite{demir_green_2014,dekker2012or}. Existing logistics analytics largely focuses on ETA prediction, travel-time forecasting, routing, or emissions estimation \cite{derrow2021eta,wang2019simple,li2018dcrnn,toth2014vrp}. Those tools support planning, but they do not learn \emph{operational actions} directly from logged behavior.
 
 Historical operational logs can support reinforcement-learning decisions, but their action-outcome patterns are not automatically causal \cite{pearl2009causality,hernan2020causal,lu2018deconfounding}. Traffic, weather, route characteristics, delivery urgency, vehicle condition, and prior service history may affect both eco-driving decisions and service, safety, and emissions outcomes. A confounder-aware representation records deployable pre-decision context, excludes outcome-adjacent proxies, and makes the policy-learning audit explicit.
 
 We study whether to activate eco mode on a trip segment. Because live experimentation is costly, this is an offline decision-learning problem with observational bias. Batch policy-learning tools such as FQI provide a useful template \cite{levine2020offline,ernst2005tree,fujimoto2019bcq}, but they are vulnerable to extrapolation and low-support errors \cite{kumar2020cql,laroche2019spibb,prudencio2023survey}. Our approach combines conservative policy improvement with a deployable state motivated by causal adjustment ideas \cite{pearl2009causality,hernan2020causal,bareinboim2016causal,zhang2019dtr,lu2018deconfounding}.
 
-\paragraph*{Research question} In a synthetic urban logistics case study, can confounder-aware offline policy learning provide credible decision support for eco-mode selection relative to held-out logged-action replay, heuristic rules, and a broader non-causal comparator?
+\textit{Research question:} In a synthetic urban logistics case study, can confounder-aware offline policy learning provide credible decision support for eco-mode selection relative to held-out logged-action replay, heuristic rules, and a broader non-causal comparator?
 
-\paragraph*{Contributions} We cast eco-mode selection as offline policy learning over vehicle-day logs, build an auditable benchmark with confounder-aware and non-causal comparators, and show that confounder-aware FQI improves by point estimate over logged-action replay and the proxy-audited non-causal FQI comparator. Heuristic and ablated policies can remain stronger, making the contribution a claim-bounded decision-support workflow rather than a full-policy dominance result.
+\textit{Contributions:} We cast eco-mode selection as offline policy learning over vehicle-day logs, build an auditable benchmark with confounder-aware and non-causal comparators, and show that confounder-aware FQI improves by point estimate over logged-action replay and the proxy-audited non-causal FQI comparator. Heuristic and ablated policies can remain stronger, making the contribution a claim-bounded decision-support workflow rather than a full-policy dominance result.
 
-\section{Related Work and Research Gap}
+\section{RELATED WORK AND RESEARCH GAP}
 \label{sec:related}
 The closest logistics literature emphasizes prediction and planning rather than policy learning. ETA and travel-time forecasting use boosted and deep models \cite{derrow2021eta,wang2019simple,li2018dcrnn}; routing and service planning emphasize combinatorial optimization \cite{toth2014vrp}; green logistics studies focus on fuel and emissions trade-offs \cite{dekker2012or,demir_green_2014,eglese2014green}. Taken together, this adjacent literature leaves a gap for learning action policies directly from logged operational decisions.
 
@@ -68,7 +117,7 @@ Offline policy learning from fixed logs draws on batch reinforcement learning an
 
 Causal inference is used as state-design discipline: it motivates a deployable pre-decision state and excludes post-action outcomes and non-deployable latent variables \cite{pearl2009causality,hernan2020causal,bareinboim2016causal,lu2018deconfounding}. Recent open work frames causal artificial intelligence as a candidate tool for collaborative urban-logistics sustainability analysis \cite{prayitno2024framework}, and a logistics-focused review identifies causal RL as a promising route toward more explainable collaborative urban-logistics decisions \cite{prayitno2024causalrlreview}. The goal is an auditable decision-support design, not general causal optimality.
 
-\section{Problem Formulation and Proposed Method}
+\section{PROBLEM FORMULATION AND PROPOSED METHOD}
 \label{sec:method}
 
 \subsection{Historical Data and Log Generation}
@@ -77,12 +126,12 @@ We formulate eco-mode control as offline policy learning over vehicle-day logs. 
 \subsection{Confounder-Aware State Representation}
 The state is deployable pre-decision context that may affect both action choice and outcomes: time, vehicle, demand, service-window, road, weather, traffic, route-risk, dispatch-delay, trajectory-position, and rolling history fields. Outcome variables, post-action measurements, and simulator-only latent variables are excluded. This does not prove that all backdoor paths are blocked; it makes the adjustment assumptions auditable and prevents recommendation-time leakage.
 
-\begin{table}[t]
-\caption{Synthetic Benchmark and State Use}
+\begin{table}[!t]
+\caption{SYNTHETIC BENCHMARK AND STATE USE}
 \label{tab:benchmark_design}
 \centering
-\scriptsize
-\renewcommand{\arraystretch}{0.98}
+\footnotesize
+\renewcommand{\arraystretch}{0.90}
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{>{\raggedright\arraybackslash}p{0.27\columnwidth}>{\raggedright\arraybackslash}p{0.67\columnwidth}}
 \toprule
@@ -124,15 +173,15 @@ a_t^{\text{base}}, & \text{otherwise},
 \end{equation}
 with validation-selected thresholds $(\tau_\mu, \tau_Q) = (0.05, 0.50)$ fixed on the test set. Baselines are logged replay, always-eco, never-eco, and a validation-frozen heuristic risk rule. The heuristic is not RL: it estimates $\hat{p}_{late}(s)$ on the confounder-aware state, freezes the validation 60th-percentile risk cutoff (0.117), and uses $\pi_h(s)=\mathbb{I}\{\hat{p}_{late}(s)<0.117\}$. Logged-action replay reuses observed held-out actions and is not a learned deployable policy.
 
-Figure~\ref{fig:workflow} summarizes the workflow; each stage writes auditable repository artifacts.
+Fig.~\ref{fig:workflow} summarizes the workflow; each stage writes auditable repository artifacts.
 
-\begin{figure}[t]
+\begin{figure}[!t]
 \centerline{\includegraphics[width=0.9\columnwidth]{workflow.png}}
 \caption{Offline decision-support workflow. The recommendation stage changes a baseline action only when value-gap and support gates clear validation-selected thresholds.}
 \label{fig:workflow}
 \end{figure}
 
-\section{Experimental Setup}
+\section{EXPERIMENTAL SETUP}
 \label{sec:experiments}
 
 The case study uses a synthetic dataset with 96{,}000 rows across 120 dates, 120 vehicles, and 15 zones. Trajectories are sorted by \texttt{date}, \texttt{vehicle\_id}, \texttt{hour}, and source-row order; 19.4\% of date-vehicle-hour groups contain multiple rows, so within-hour ordering is an explicit tie-break assumption. The temporal split is 67{,}179 training rows, 14{,}561 validation rows, and 14{,}260 test rows. The implementation uses Python 3.12, \texttt{pandas}, \texttt{numpy}, \texttt{scikit-learn}, \texttt{matplotlib}, \texttt{seaborn}, and \texttt{joblib}, with fixed seed 42.
@@ -150,7 +199,7 @@ Policy comparison uses OPE. The headline estimand is not the full closed-loop re
 \end{align}
 The same clipped denominator is used for self-normalized IPS. We also compute plug-in and FQE diagnostics \cite{dudik2011dr,jiang2016doubly,thomas2016dataefficient,le2019batch,kallus2020double}. FQE is a discounted trajectory-return diagnostic; DR is the per-decision headline metric. Uncertainty uses 500 bootstrap replicates, including trajectory-level cluster intervals that are 4.3\% wider on average than row-level intervals for the overall primary DR metric, plus paired cluster intervals for key gaps. Robustness slices are high traffic, rain/event, tight window, and late day.
 
-\section{Results and Discussion}
+\section{RESULTS AND DISCUSSION}
 \label{sec:results}
 
 \subsection{Main Policy Comparison}
@@ -158,12 +207,12 @@ Table~\ref{tab:main} and Fig.~\ref{fig:policy_values} summarize held-out per-dec
 
 Table and figure labels use the same naming convention. Logged replay reuses observed actions; the heuristic uses a validation-frozen lateness-risk cutoff; confounder-aware FQI uses the full deployable state; no-vehicle and no-history ablations remove vehicle identity and rolling/prior-history fields; minimal FQI uses five operational fields; and non-causal FQI keeps the compatibility flag. The heuristic turns eco mode on for all five lowest lateness-risk deciles, most of the sixth, and none of the top four deciles; its action agreement with full confounder-aware FQI is 0.601.
 
-\begin{table}[t]
-\caption{Per-Decision Policy Comparison on the Held-Out Test Set (Primary Reward, Higher Is Better)}
+\begin{table}[!t]
+\caption{PER-DECISION POLICY COMPARISON ON THE HELD-OUT TEST SET (PRIMARY REWARD, HIGHER IS BETTER)}
 \label{tab:main}
 \centering
-\scriptsize
-\renewcommand{\arraystretch}{1.08}
+\footnotesize
+\renewcommand{\arraystretch}{1.00}
 \setlength{\tabcolsep}{2pt}
 \begin{tabular}{lccc}
 \toprule
@@ -182,7 +231,7 @@ Always eco           & $-5.061$ & $[-5.221,\, -4.914]$ & 1.000 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!b]
 \centerline{\includegraphics[width=\columnwidth]{policy_values.png}}
 \caption{Overall policy-value estimates with bootstrap intervals. Values to the right are better; the dashed line marks held-out logged-action replay.}
 \label{fig:policy_values}
@@ -200,7 +249,7 @@ The confounder-aware ablations are stable: removing history changes DR by $+0.00
 
 Segment robustness is summarized in Fig.~\ref{fig:robustness}. Non-causal FQI remains above confounder-aware FQI in \emph{high traffic}, \emph{tight window}, and \emph{late day}, while confounder-aware FQI is above it in \emph{rain or event}. Confounder-aware FQI remains above logged replay except in \emph{late day}, where mild shifts in \texttt{traffic\_index} (+0.014) and \texttt{dispatch\_delay\_min} (+0.18 min) increase fallback pressure.
 
-\begin{figure}[t]
+\begin{figure}[!t]
 \centerline{\includegraphics[width=0.95\columnwidth]{robustness_heatmap.png}}
 \caption{Per-decision doubly robust reward values by operational segment. Non-causal FQI remains above confounder-aware FQI in three slices, while confounder-aware FQI is above logged-action replay everywhere except \emph{late day}.}
 \label{fig:robustness}
@@ -216,7 +265,7 @@ For an industrial engineering workflow, the central artifact is the audit trail:
 \subsection{Threats to Validity}
 This study is a synthetic benchmark rather than field validation. The action space is binary, generator equations are unavailable, within-hour ordering uses source-row tie breaks, and three simulator-only latent factors remain unavailable to deployment-time policies. The causal adjustment set is an auditable design choice, not proof that all backdoor paths are blocked. OPE values depend on learned nuisance models, so overlapping intervals warn against strong dominance claims.
 
-\section{Conclusion}
+\section{CONCLUSION}
 \label{sec:conclusion}
 The paper presents eco-mode selection as an auditable synthetic benchmark for confounder-aware decision support. Confounder-aware FQI shows a point-estimate improvement over logged replay, a minimal baseline, and the proxy-audited non-causal FQI comparator while remaining support-constrained. Heuristic and ablated policies can still be stronger, so the contribution is the claim-bounded decision-support workflow and reproducible audit trail rather than a universal dominance claim.
 
